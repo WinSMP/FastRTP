@@ -24,7 +24,7 @@ import io.papermc.paper.threadedregions.scheduler.RegionScheduler;
  * to random safe locations within a specified range.
  */
 public class SimpleRtp extends JavaPlugin {
-
+    private RegionScheduler scheduler = Bukkit.getRegionScheduler();
     private static final Set<Material> UNSAFE_BLOCKS = EnumSet.of(
             Material.LAVA, Material.WATER, Material.FIRE, Material.CACTUS, Material.MAGMA_BLOCK);
 
@@ -145,13 +145,11 @@ public class SimpleRtp extends JavaPlugin {
                 continue;
             }
 
-            // Ensure chunk is loaded synchronously
             int chunkX = x >> 4;
             int chunkZ = z >> 4;
 
             if (!world.isChunkLoaded(chunkX, chunkZ)) {
                 if (isFolia()) {
-                    RegionScheduler scheduler = Bukkit.getRegionScheduler();
                     scheduler.execute(this, randomLocation, () -> world.loadChunk(chunkX, chunkZ));
                 } else {
                     world.loadChunk(chunkX, chunkZ);
@@ -161,10 +159,16 @@ public class SimpleRtp extends JavaPlugin {
             int highestY = getHighestBlockYAtAsync(x, z, world);
             Location potentialLocation = new Location(world, x + 0.5, highestY + 1, z + 0.5);
 
-            // cant do anything async here for no fucking reason
-            Material blockBelow = world.getBlockAt(x, highestY, z).getType();
-            Material blockAtFeet = world.getBlockAt(x, highestY + 1, z).getType();
-            Material blockAtHead = world.getBlockAt(x, highestY + 2, z).getType();
+            Material blockBelow, blockAtFeet, blockAtHead;
+            if (!isFolia()) {
+                blockBelow = world.getBlockAt(x, highestY - 1, z).getType();
+                blockAtFeet = world.getBlockAt(x, highestY, z).getType();
+                blockAtHead = world.getBlockAt(x, highestY + 1, z).getType();
+            } else {
+                blockBelow = getBlockAtAsync(new Location(world, x, highestY, z));
+                blockAtFeet = getBlockAtAsync(new Location(world, x, highestY + 1, z));
+                blockAtHead = getBlockAtAsync(new Location(world, x, highestY + 2, z));
+            }
 
             if (isSafeBlock(blockBelow) && blockAtFeet == Material.AIR
                 && blockAtHead == Material.AIR) {
@@ -185,8 +189,17 @@ public class SimpleRtp extends JavaPlugin {
         return material.isSolid() && !UNSAFE_BLOCKS.contains(material);
     }
 
+    /**
+     * Folia-specific async wrapper for World#getHighestBlockYAt which uses
+     * the RegionScheduler to load the chunk.
+     * 
+     * @param x The x-coordinate of the block
+     * @param z The z-coordinate of the block
+     * @param world The world of the block
+     * @return The highest y-coordinate of the block
+     */
     private int getHighestBlockYAtAsync(int x, int z, World world) {
-        RegionScheduler scheduler = Bukkit.getRegionScheduler();
+        // RegionScheduler scheduler = Bukkit.getRegionScheduler();
 
         AtomicInteger y = new AtomicInteger();
         RegionAccessor regionAccessor = (RegionAccessor) world;
@@ -195,6 +208,30 @@ public class SimpleRtp extends JavaPlugin {
             y.set(regionAccessor.getHighestBlockYAt(x, z, HeightMap.MOTION_BLOCKING));
         });
         return y.get();
+    }
+
+    /**
+     * Folia-specific async wrapper for World#getBlockAt which uses
+     * the RegionScheduler to load the chunk.
+     * 
+     * @param Location The location of the block
+     * @return Material The material of the block
+     */
+    private Material getBlockAtAsync(Location loc) {
+        final Location location = loc;
+        World world = location.getWorld();
+        
+        // RegionScheduler scheduler = Bukkit.getRegionScheduler();
+        ConcurrentWrapper<Material> materialWrapper = new ConcurrentWrapper<>(Material.AIR);
+
+        scheduler.execute(this, loc, () -> {
+            int x = (int) location.getX();
+            int y = (int) location.getY();
+            int z = (int) location.getZ();
+            materialWrapper.set(world.getBlockAt(x, y, z).getType());
+        });
+
+        return materialWrapper.get();
     }
 
     private static boolean isFolia() {
