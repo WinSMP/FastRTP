@@ -82,7 +82,7 @@ public class SimpleRtp extends JavaPlugin {
             findSafeLocationAsync(world, maxRange, 0, safeLoc -> {
                 if (safeLoc != null) {
                     player.getScheduler().run(this, task -> {
-                        player.teleport(safeLoc);
+                        player.teleportAsync(safeLoc);
                         player.sendMessage("§7Teleported §3successfully§7!");
                     }, null);
                 } else {
