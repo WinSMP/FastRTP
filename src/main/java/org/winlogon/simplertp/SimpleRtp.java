@@ -15,9 +15,13 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
-
 import io.papermc.paper.threadedregions.scheduler.RegionScheduler;
 
+/**
+ * SimpleRTP, a simple plugin for teleporting players to a random safe location.
+ * 
+ * @author walker84837
+ */
 public class SimpleRtp extends JavaPlugin {
     private RegionScheduler scheduler = Bukkit.getRegionScheduler();
     private static final Set<Material> UNSAFE_BLOCKS = EnumSet.of(
@@ -68,7 +72,8 @@ public class SimpleRtp extends JavaPlugin {
 
         if (args.length > 0 && args[0].equalsIgnoreCase("help")) {
             player.sendMessage("§aUsage§7: /rtp");
-            player.sendMessage("§7Teleports you to a safe location between §3" + minRange + "§7 and §3" + maxRange + "§7 blocks.");
+            player.sendMessage("§7Teleports you to a safe location between §3"
+                    + minRange + "§7 and §3" + maxRange + "§7 blocks.");
             return true;
         }
 
@@ -96,7 +101,9 @@ public class SimpleRtp extends JavaPlugin {
         return true;
     }
 
-    private void findSafeLocationAsync(World world, double maxRange, int attempt, Consumer<Location> callback) {
+    private void findSafeLocationAsync(
+            World world, double maxRange, int attempt, Consumer<Location> callback
+    ) {
         if (attempt >= maxAttempts) {
             callback.accept(null);
             return;
@@ -139,11 +146,15 @@ public class SimpleRtp extends JavaPlugin {
             int z = random.nextInt((int) maxRange * 2) - (int) maxRange;
             Location loc = new Location(world, x, 0, z);
 
-            if (!isWithinWorldBorder(world, loc) || !isOutsideMinRange(world, x, z)) continue;
+            if (!isWithinWorldBorder(world, loc) || !isOutsideMinRange(world, x, z)) {
+                continue;
+            }
 
             int chunkX = x >> 4;
             int chunkZ = z >> 4;
-            if (!world.isChunkLoaded(chunkX, chunkZ)) world.loadChunk(chunkX, chunkZ);
+            if (!world.isChunkLoaded(chunkX, chunkZ)) {
+                world.loadChunk(chunkX, chunkZ);
+            }
 
             int y = findSafeY(world, x, z);
             if (y != -1) return new Location(world, x + 0.5, y + 1, z + 0.5);
@@ -168,11 +179,15 @@ public class SimpleRtp extends JavaPlugin {
             }
         }
 
-        if (highestSolidY == -1) return -1;
+        if (highestSolidY == -1) {
+            return -1;
+        }
 
         Material above1 = world.getBlockAt(x, highestSolidY + 1, z).getType();
         Material above2 = world.getBlockAt(x, highestSolidY + 2, z).getType();
-        if (above1 != Material.AIR || above2 != Material.AIR) return -1;
+        if (above1 != Material.AIR || above2 != Material.AIR) {
+            return -1;
+        }
 
         Material below = world.getBlockAt(x, highestSolidY - 1, z).getType();
         return UNSAFE_BLOCKS.contains(below) ? -1 : highestSolidY;
