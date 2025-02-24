@@ -6,7 +6,6 @@ import java.util.Set;
 import java.util.function.Consumer;
 
 import dev.jorel.commandapi.CommandAPI;
-import dev.jorel.commandapi.CommandAPIBukkitConfig;
 import dev.jorel.commandapi.CommandAPICommand;
 import dev.jorel.commandapi.arguments.StringArgument;
 import org.bukkit.Bukkit;
@@ -15,7 +14,6 @@ import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.WorldBorder;
 import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import io.papermc.paper.threadedregions.scheduler.RegionScheduler;
 
@@ -34,13 +32,7 @@ public class SimpleRtp extends JavaPlugin {
     private FileConfiguration config;
 
     @Override
-    public void onLoad() {
-        CommandAPI.onLoad(new CommandAPIBukkitConfig(this));
-    }
-
-    @Override
     public void onEnable() {
-        CommandAPI.onEnable();
         saveDefaultConfig();
         loadConfig();
         registerCommands();
@@ -49,7 +41,6 @@ public class SimpleRtp extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        CommandAPI.onDisable();
         getLogger().info("SimpleRTP has been disabled!");
     }
 
