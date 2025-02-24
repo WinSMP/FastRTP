@@ -5,13 +5,15 @@ import java.util.Random;
 import java.util.Set;
 import java.util.function.Consumer;
 
+import dev.jorel.commandapi.CommandAPI;
+import dev.jorel.commandapi.CommandAPIBukkitConfig;
+import dev.jorel.commandapi.CommandAPICommand;
+import dev.jorel.commandapi.arguments.StringArgument;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.WorldBorder;
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -32,16 +34,23 @@ public class SimpleRtp extends JavaPlugin {
     private FileConfiguration config;
 
     @Override
+    public void onLoad() {
+        CommandAPI.onLoad(new CommandAPIBukkitConfig(this));
+    }
+
+    @Override
     public void onEnable() {
+        CommandAPI.onEnable();
         saveDefaultConfig();
         loadConfig();
-        this.getCommand("rtp").setExecutor(this);
-        getLogger().info("§aSimpleRTP has been enabled!");
+        registerCommands();
+        getLogger().info("SimpleRTP has been enabled!");
     }
 
     @Override
     public void onDisable() {
-        getLogger().info("§cSimpleRTP has been disabled!");
+        CommandAPI.onDisable();
+        getLogger().info("SimpleRTP has been disabled!");
     }
 
     private void loadConfig() {
@@ -50,55 +59,53 @@ public class SimpleRtp extends JavaPlugin {
         maxAttempts = config.getInt("max-attempts", 50);
     }
 
+    private void registerCommands() {
+        new CommandAPICommand("rtp")
+                .withAliases("randomtp")
+                .withOptionalArguments(new StringArgument("option"))
+                .executesPlayer((player, args) -> {
+                    String option = (String) args.getOrDefault("option", "");
+                    World world = player.getWorld();
+                    double maxRange = getMaxRange(world);
+
+                    if ("help".equalsIgnoreCase(option)) {
+                        player.sendMessage("§aUsage§7: /rtp");
+                        player.sendMessage("§7Teleports you to a safe location between §3"
+                                + minRange + "§7 and §3" + maxRange + "§7 blocks.");
+                        return;
+                    }
+
+                    player.sendMessage("§7Finding a safe location...");
+                    if (isFolia()) {
+                        findSafeLocationAsync(world, maxRange, 0, safeLoc -> {
+                            if (safeLoc != null) {
+                                player.getScheduler().run(this, task -> {
+                                    player.teleportAsync(safeLoc);
+                                    player.sendMessage("§7Teleported §3successfully§7!");
+                                }, null);
+                            } else {
+                                player.sendMessage("§cError§7: No safe location found.");
+                            }
+                        });
+                    } else {
+                        Location safeLoc = findSafeLocationSync(world, maxRange);
+                        if (safeLoc != null) {
+                            player.teleport(safeLoc);
+                            player.sendMessage("§7Teleported §3successfully§7!");
+                        } else {
+                            player.sendMessage("§cError§7: No safe location found.");
+                        }
+                    }
+                })
+                .register();
+    }
+
     private double getMaxRange(World world) {
         WorldBorder border = world.getWorldBorder();
         double defaultMaxRange = border.getSize() / 2;
         double configMaxRange = config.getDouble("max-range", defaultMaxRange);
 
-        configMaxRange = Math.max(minRange, Math.min(configMaxRange, defaultMaxRange));
-        return configMaxRange;
-    }
-
-    @Override
-    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (!(sender instanceof Player)) {
-            sender.sendMessage("§cError§7: Only players can use this command.");
-            return true;
-        }
-
-        Player player = (Player) sender;
-        World world = player.getWorld();
-        double maxRange = getMaxRange(world);
-
-        if (args.length > 0 && args[0].equalsIgnoreCase("help")) {
-            player.sendMessage("§aUsage§7: /rtp");
-            player.sendMessage("§7Teleports you to a safe location between §3"
-                    + minRange + "§7 and §3" + maxRange + "§7 blocks.");
-            return true;
-        }
-
-        player.sendMessage("§7Finding a safe location...");
-        if (isFolia()) {
-            findSafeLocationAsync(world, maxRange, 0, safeLoc -> {
-                if (safeLoc != null) {
-                    player.getScheduler().run(this, task -> {
-                        player.teleportAsync(safeLoc);
-                        player.sendMessage("§7Teleported §3successfully§7!");
-                    }, null);
-                } else {
-                    player.sendMessage("§cError§7: No safe location found.");
-                }
-            });
-        } else {
-            Location safeLoc = findSafeLocationSync(world, maxRange);
-            if (safeLoc != null) {
-                player.teleport(safeLoc);
-                player.sendMessage("§7Teleported §3successfully§7!");
-            } else {
-                player.sendMessage("§cError§7: No safe location found.");
-            }
-        }
-        return true;
+        return Math.max(minRange, Math.min(configMaxRange, defaultMaxRange));
     }
 
     private void findSafeLocationAsync(
