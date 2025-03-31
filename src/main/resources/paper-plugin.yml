@@ -1,6 +1,6 @@
-main: org.winlogon.simplertp.SimpleRtp
-name: SimpleRTP
-version: "0.3.0-SNAPSHOT"
+main: "${PACKAGE}.SimpleRtp"
+name: "${NAME}"
+version: "${VERSION}"
 api-version: "1.21"
 author: winlogon
 description: Teleport to a random place, safely
