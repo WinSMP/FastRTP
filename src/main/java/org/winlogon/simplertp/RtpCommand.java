@@ -1,0 +1,204 @@
+package org.winlogon.simplertp;
+
+import dev.jorel.commandapi.annotations.Command;
+import dev.jorel.commandapi.annotations.Default;
+import dev.jorel.commandapi.annotations.Alias;
+import dev.jorel.commandapi.annotations.arguments.AStringArgument;
+import org.bukkit.Bukkit;
+import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.World;
+import org.bukkit.WorldBorder;
+import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.entity.Player;
+import io.papermc.paper.threadedregions.scheduler.RegionScheduler;
+
+import java.util.EnumSet;
+import java.util.Random;
+import java.util.Set;
+import java.util.function.Consumer;
+
+@Command("rtp")
+@Alias({"randomtp"})
+public class RtpCommand {
+    
+    private static final Set<Material> UNSAFE_BLOCKS = EnumSet.of(
+            Material.LAVA, Material.WATER, Material.FIRE, Material.CACTUS, Material.MAGMA_BLOCK);
+    
+    // When no argument is provided, delegate to the main method with an empty string.
+    @Default
+    public static void rtp(Player player) {
+        rtp(player, "");
+    }
+    
+    // This method handles "/rtp <option>"
+    @Default
+    public static void rtp(Player player, @AStringArgument String option) {
+        SimpleRtp plugin = SimpleRtp.getInstance();
+        int minRange = plugin.getMinRange();
+        int maxAttempts = plugin.getMaxAttempts();
+        FileConfiguration config = plugin.getConfigFile();
+        World world = player.getWorld();
+        double maxRangeValue = getMaxRange(world, config, minRange);
+        
+        // If "help" is specified, show help message
+        if ("help".equalsIgnoreCase(option)) {
+            player.sendMessage("§aUsage§7: /rtp");
+            player.sendMessage("§7Teleports you to a safe location between §3" 
+                    + minRange + "§7 and §3" + maxRangeValue + "§7 blocks.");
+            return;
+        }
+        
+        player.sendMessage("§7Finding a safe location...");
+        
+        if (isFolia()) {
+            // Asynchronous safe location lookup for Folia
+            findSafeLocationAsync(world, maxRangeValue, 0, maxAttempts, minRange, safeLoc -> {
+                if (safeLoc != null) {
+                    Bukkit.getScheduler().runTask(plugin, () -> {
+                        player.teleport(safeLoc);
+                        player.sendMessage("§7Teleported §3successfully§7!");
+                    });
+                } else {
+                    player.sendMessage("§cError§7: No safe location found.");
+                }
+            });
+        } else {
+            // Synchronous safe location lookup for normal servers
+            Location safeLoc = findSafeLocationSync(world, maxRangeValue, maxAttempts, minRange);
+            if (safeLoc != null) {
+                player.teleport(safeLoc);
+                player.sendMessage("§7Teleported §3successfully§7!");
+            } else {
+                player.sendMessage("§cError§7: No safe location found.");
+            }
+        }
+    }
+    
+    private static double getMaxRange(World world, FileConfiguration config, int minRange) {
+        WorldBorder border = world.getWorldBorder();
+        double defaultMaxRange = border.getSize() / 2;
+        double configMaxRange = config.getDouble("max-range", defaultMaxRange);
+        return Math.max(minRange, Math.min(configMaxRange, defaultMaxRange));
+    }
+    
+    private static void findSafeLocationAsync(
+        World world, double maxRange, int attempt, int maxAttempts, int minRange, Consumer<Location> callback
+    ) {
+        if (attempt >= maxAttempts) {
+            callback.accept(null);
+            return;
+        }
+        
+        Random random = new Random();
+        int x = random.nextInt((int) maxRange * 2) - (int) maxRange;
+        int z = random.nextInt((int) maxRange * 2) - (int) maxRange;
+        Location loc = new Location(world, x, 0, z);
+        
+        if (!isWithinWorldBorder(world, loc) || !isOutsideMinRange(world, x, z, minRange)) {
+            findSafeLocationAsync(world, maxRange, attempt + 1, maxAttempts, minRange, callback);
+            return;
+        }
+        
+        RegionScheduler scheduler = Bukkit.getRegionScheduler();
+        scheduler.execute(SimpleRtp.getInstance(), loc, () -> {
+            int chunkX = x >> 4;
+            int chunkZ = z >> 4;
+            if (world.isChunkLoaded(chunkX, chunkZ)) {
+                int y = findSafeY(world, x, z);
+                if (y != -1) {
+                    callback.accept(new Location(world, x + 0.5, y + 1, z + 0.5));
+                } else {
+                    findSafeLocationAsync(world, maxRange, attempt + 1, maxAttempts, minRange, callback);
+                }
+            } else {
+                world.getChunkAtAsync(chunkX, chunkZ, true, true, chunk -> {
+                    if (!chunk.isLoaded()) {
+                        findSafeLocationAsync(world, maxRange, attempt + 1, maxAttempts, minRange, callback);
+                        return;
+                    }
+                    int y = findSafeY(world, x, z);
+                    if (y != -1) {
+                        callback.accept(new Location(world, x + 0.5, y + 1, z + 0.5));
+                    } else {
+                        findSafeLocationAsync(world, maxRange, attempt + 1, maxAttempts, minRange, callback);
+                    }
+                });
+            }
+        });
+    }
+    
+    private static Location findSafeLocationSync(World world, double maxRange, int maxAttempts, int minRange) {
+        Random random = new Random();
+        for (int attempt = 0; attempt < maxAttempts; attempt++) {
+            int x = random.nextInt((int) maxRange * 2) - (int) maxRange;
+            int z = random.nextInt((int) maxRange * 2) - (int) maxRange;
+            Location loc = new Location(world, x, 0, z);
+            
+            if (!isWithinWorldBorder(world, loc) || !isOutsideMinRange(world, x, z, minRange)) {
+                continue;
+            }
+            
+            int chunkX = x >> 4;
+            int chunkZ = z >> 4;
+            if (!world.isChunkLoaded(chunkX, chunkZ)) {
+                world.loadChunk(chunkX, chunkZ);
+            }
+            
+            int y = findSafeY(world, x, z);
+            if (y != -1) {
+                return new Location(world, x + 0.5, y + 1, z + 0.5);
+            }
+        }
+        return null;
+    }
+    
+    private static int findSafeY(World world, int x, int z) {
+        int low = world.getMinHeight();
+        int high = world.getMaxHeight();
+        int highestSolidY = -1;
+        
+        while (low <= high) {
+            int mid = (low + high) / 2;
+            Material block = world.getBlockAt(x, mid, z).getType();
+            
+            if (block.isSolid()) {
+                highestSolidY = mid;
+                low = mid + 1;
+            } else {
+                high = mid - 1;
+            }
+        }
+        
+        if (highestSolidY == -1) {
+            return -1;
+        }
+        
+        Material above1 = world.getBlockAt(x, highestSolidY + 1, z).getType();
+        Material above2 = world.getBlockAt(x, highestSolidY + 2, z).getType();
+        if (above1 != Material.AIR || above2 != Material.AIR) {
+            return -1;
+        }
+        
+        Material below = world.getBlockAt(x, highestSolidY - 1, z).getType();
+        return UNSAFE_BLOCKS.contains(below) ? -1 : highestSolidY;
+    }
+    
+    private static boolean isWithinWorldBorder(World world, Location loc) {
+        return world.getWorldBorder().isInside(loc);
+    }
+    
+    private static boolean isOutsideMinRange(World world, int x, int z, int minRange) {
+        Location spawn = world.getSpawnLocation();
+        return spawn.distanceSquared(new Location(world, x, spawn.getY(), z)) >= minRange * minRange;
+    }
+    
+    private static boolean isFolia() {
+        try {
+            Class.forName("io.papermc.paper.threadedregions.RegionizedServer");
+            return true;
+        } catch (ClassNotFoundException e) {
+            return false;
+        }
+    }
+}
