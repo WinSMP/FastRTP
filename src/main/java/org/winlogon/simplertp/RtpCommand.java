@@ -2,8 +2,8 @@ package org.winlogon.simplertp;
 
 import dev.jorel.commandapi.annotations.Command;
 import dev.jorel.commandapi.annotations.Default;
-import dev.jorel.commandapi.annotations.Alias;
-import dev.jorel.commandapi.annotations.arguments.AStringArgument;
+import dev.jorel.commandapi.annotations.Help;
+import dev.jorel.commandapi.annotations.Subcommand;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -19,35 +19,21 @@ import java.util.Set;
 import java.util.function.Consumer;
 
 @Command("rtp")
-@Alias({"randomtp"})
+@Help("Teleports you to a safe location")
 public class RtpCommand {
     
     private static final Set<Material> UNSAFE_BLOCKS = EnumSet.of(
             Material.LAVA, Material.WATER, Material.FIRE, Material.CACTUS, Material.MAGMA_BLOCK);
+    private static Random random = new Random();
     
-    // When no argument is provided, delegate to the main method with an empty string.
     @Default
     public static void rtp(Player player) {
-        rtp(player, "");
-    }
-    
-    // This method handles "/rtp <option>"
-    @Default
-    public static void rtp(Player player, @AStringArgument String option) {
         SimpleRtp plugin = SimpleRtp.getInstance();
         int minRange = plugin.getMinRange();
         int maxAttempts = plugin.getMaxAttempts();
         FileConfiguration config = plugin.getConfigFile();
         World world = player.getWorld();
         double maxRangeValue = getMaxRange(world, config, minRange);
-        
-        // If "help" is specified, show help message
-        if ("help".equalsIgnoreCase(option)) {
-            player.sendMessage("§aUsage§7: /rtp");
-            player.sendMessage("§7Teleports you to a safe location between §3" 
-                    + minRange + "§7 and §3" + maxRangeValue + "§7 blocks.");
-            return;
-        }
         
         player.sendMessage("§7Finding a safe location...");
         
@@ -72,6 +58,20 @@ public class RtpCommand {
             }
         }
     }
+
+    @Subcommand("help")
+    public static void rtpHelp(Player player) {
+        SimpleRtp plugin = SimpleRtp.getInstance();
+        int minRange = plugin.getMinRange();
+        FileConfiguration config = plugin.getConfigFile();
+        World world = player.getWorld();
+        double maxRangeValue = getMaxRange(world, config, minRange);
+        
+        player.sendMessage("§aUsage§7: /rtp");
+        player.sendMessage("§7Teleports you to a safe location between §3" 
+                + minRange + "§7 and §3" + maxRangeValue + "§7 blocks.");
+        return;
+    }
     
     private static double getMaxRange(World world, FileConfiguration config, int minRange) {
         WorldBorder border = world.getWorldBorder();
@@ -88,7 +88,6 @@ public class RtpCommand {
             return;
         }
         
-        Random random = new Random();
         int x = random.nextInt((int) maxRange * 2) - (int) maxRange;
         int z = random.nextInt((int) maxRange * 2) - (int) maxRange;
         Location loc = new Location(world, x, 0, z);
@@ -127,7 +126,6 @@ public class RtpCommand {
     }
     
     private static Location findSafeLocationSync(World world, double maxRange, int maxAttempts, int minRange) {
-        Random random = new Random();
         for (int attempt = 0; attempt < maxAttempts; attempt++) {
             int x = random.nextInt((int) maxRange * 2) - (int) maxRange;
             int z = random.nextInt((int) maxRange * 2) - (int) maxRange;
@@ -152,8 +150,9 @@ public class RtpCommand {
     }
     
     private static int findSafeY(World world, int x, int z) {
-        int low = world.getMinHeight();
+        int minHeight = world.getMinHeight();
         int high = world.getMaxHeight();
+        int low = (int) (minHeight + (high - minHeight) / 3.75);
         int highestSolidY = -1;
         
         while (low <= high) {
