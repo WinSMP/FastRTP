@@ -5,7 +5,6 @@ import java.util.Random;
 import java.util.Set;
 import java.util.function.Consumer;
 
-import dev.jorel.commandapi.CommandAPI;
 import dev.jorel.commandapi.CommandAPICommand;
 import dev.jorel.commandapi.arguments.StringArgument;
 import org.bukkit.Bukkit;
@@ -120,19 +119,26 @@ public class SimpleRtp extends JavaPlugin {
         scheduler.execute(this, loc, () -> {
             int chunkX = x >> 4;
             int chunkZ = z >> 4;
-            if (!world.isChunkLoaded(chunkX, chunkZ)) {
-                world.loadChunk(chunkX, chunkZ);
-                if (!world.isChunkLoaded(chunkX, chunkZ)) {
+            if (world.isChunkLoaded(chunkX, chunkZ)) {
+                int y = findSafeY(world, x, z);
+                if (y != -1) {
+                    callback.accept(new Location(world, x + 0.5, y + 1, z + 0.5));
+                } else {
                     findSafeLocationAsync(world, maxRange, attempt + 1, callback);
-                    return;
                 }
-            }
-
-            int y = findSafeY(world, x, z);
-            if (y != -1) {
-                callback.accept(new Location(world, x + 0.5, y + 1, z + 0.5));
             } else {
-                findSafeLocationAsync(world, maxRange, attempt + 1, callback);
+                world.getChunkAtAsync(chunkX, chunkZ, true, true, chunk -> {
+                    if (!chunk.isLoaded()) {
+                        findSafeLocationAsync(world, maxRange, attempt + 1, callback);
+                        return;
+                    }
+                    int y = findSafeY(world, x, z);
+                    if (y != -1) {
+                        callback.accept(new Location(world, x + 0.5, y + 1, z + 0.5));
+                    } else {
+                        findSafeLocationAsync(world, maxRange, attempt + 1, callback);
+                    }
+                });
             }
         });
     }
