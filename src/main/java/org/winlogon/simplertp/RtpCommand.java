@@ -52,19 +52,17 @@ public class RtpCommand {
         player.sendMessage("§7Finding a safe location...");
         
         if (isFolia()) {
-            // Asynchronous safe location lookup for Folia
             findSafeLocationAsync(world, maxRangeValue, 0, maxAttempts, minRange, safeLoc -> {
                 if (safeLoc != null) {
-                    Bukkit.getScheduler().runTask(plugin, () -> {
-                        player.teleport(safeLoc);
+                    player.getScheduler().execute(plugin, () -> {
+                        player.teleportAsync(safeLoc);
                         player.sendMessage("§7Teleported §3successfully§7!");
-                    });
+                    }, null, 0);
                 } else {
                     player.sendMessage("§cError§7: No safe location found.");
                 }
             });
         } else {
-            // Synchronous safe location lookup for normal servers
             Location safeLoc = findSafeLocationSync(world, maxRangeValue, maxAttempts, minRange);
             if (safeLoc != null) {
                 player.teleport(safeLoc);
