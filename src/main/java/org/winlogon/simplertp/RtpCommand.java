@@ -68,8 +68,8 @@ public class RtpCommand {
         World world = player.getWorld();
         double maxRangeValue = getMaxRange(world, config, minRange);
         
-        player.sendRichMessage("<green>Usage</green><gray>: /rtp</gray>");
-        player.sendRichMessage(STR."Teleports you to a safe location between <dark_aqua>\{minRange}</dark_aqua> and <dark_aqua>\{maxRangeValue}</dark_aqua> blocks.");
+        player.sendRichMessage("<dark_aqua>Usage</dark_aqua><gray>: /rtp [help]</gray>");
+        player.sendRichMessage(STR."<gray>Teleports you to a safe location between <dark_aqua>\{minRange}</dark_aqua> and <dark_aqua>\{maxRangeValue}</dark_aqua> blocks.</gray>");
         return;
     }
     
@@ -194,7 +194,7 @@ public class RtpCommand {
         try {
             Class.forName("io.papermc.paper.threadedregions.RegionizedServer");
             return true;
-        } catch (ClassNotFoundException e) {
+        } catch (ClassNotFoundException _) {
             return false;
         }
     }
