@@ -3,11 +3,12 @@ package org.winlogon.simplertp;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
+
 import io.papermc.paper.threadedregions.scheduler.RegionScheduler;
+
 import dev.jorel.commandapi.CommandAPI;
 
 public class SimpleRtp extends JavaPlugin {
-    
     private RegionScheduler scheduler = Bukkit.getRegionScheduler();
     private int minRange;
     private int maxAttempts;
@@ -20,7 +21,7 @@ public class SimpleRtp extends JavaPlugin {
         instance = this;
         saveDefaultConfig();
         loadConfig();
-        // Register the annotation-based command
+
         CommandAPI.registerCommand(RtpCommand.class);
         getLogger().info("SimpleRTP has been enabled!");
     }
@@ -36,7 +37,6 @@ public class SimpleRtp extends JavaPlugin {
         maxAttempts = config.getInt("max-attempts", 50);
     }
     
-    // Getter methods for use in our command class
     public static SimpleRtp getInstance() {
         return instance;
     }

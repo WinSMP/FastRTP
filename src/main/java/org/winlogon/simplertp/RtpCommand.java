@@ -25,6 +25,7 @@ public class RtpCommand {
     private static final Set<Material> UNSAFE_BLOCKS = EnumSet.of(
             Material.LAVA, Material.WATER, Material.FIRE, Material.CACTUS, Material.MAGMA_BLOCK);
     private static Random random = new Random();
+    private static boolean isFolia = isFolia();
     
     @Default
     public static void rtp(Player player) {
@@ -35,26 +36,26 @@ public class RtpCommand {
         World world = player.getWorld();
         double maxRangeValue = getMaxRange(world, config, minRange);
         
-        player.sendMessage("§7Finding a safe location...");
+        player.sendRichMessage("<gray>Finding a safe location...</gray>");
         
-        if (isFolia()) {
+        if (isFolia) {
             findSafeLocationAsync(world, maxRangeValue, 0, maxAttempts, minRange, safeLoc -> {
                 if (safeLoc != null) {
                     player.getScheduler().execute(plugin, () -> {
                         player.teleportAsync(safeLoc);
-                        player.sendMessage("§7Teleported §3successfully§7!");
+                        player.sendRichMessage("<gray>Teleported <dark_aqua>successfully</dark_aqua>!<gray>");
                     }, null, 0);
                 } else {
-                    player.sendMessage("§cError§7: No safe location found.");
+                    player.sendRichMessage("<red>Error</red><gray>: No safe location found.<gray>");
                 }
             });
         } else {
             Location safeLoc = findSafeLocationSync(world, maxRangeValue, maxAttempts, minRange);
             if (safeLoc != null) {
                 player.teleport(safeLoc);
-                player.sendMessage("§7Teleported §3successfully§7!");
+                player.sendRichMessage("<gray>Teleported <dark_aqua>successfully</dark_aqua>!<gray>");
             } else {
-                player.sendMessage("§cError§7: No safe location found.");
+                player.sendRichMessage("<red>Error</red><gray>: No safe location found.<gray>");
             }
         }
     }
@@ -67,9 +68,8 @@ public class RtpCommand {
         World world = player.getWorld();
         double maxRangeValue = getMaxRange(world, config, minRange);
         
-        player.sendMessage("§aUsage§7: /rtp");
-        player.sendMessage("§7Teleports you to a safe location between §3" 
-                + minRange + "§7 and §3" + maxRangeValue + "§7 blocks.");
+        player.sendRichMessage("<dark_aqua>Usage</dark_aqua><gray>: /rtp [help]</gray>");
+        player.sendRichMessage(STR."<gray>Teleports you to a safe location between <dark_aqua>\{minRange}</dark_aqua> and <dark_aqua>\{maxRangeValue}</dark_aqua> blocks.</gray>");
         return;
     }
     
@@ -194,7 +194,7 @@ public class RtpCommand {
         try {
             Class.forName("io.papermc.paper.threadedregions.RegionizedServer");
             return true;
-        } catch (ClassNotFoundException e) {
+        } catch (ClassNotFoundException _) {
             return false;
         }
     }
