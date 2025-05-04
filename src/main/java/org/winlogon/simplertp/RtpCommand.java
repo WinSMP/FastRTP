@@ -12,10 +12,13 @@ import org.bukkit.WorldBorder;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import io.papermc.paper.threadedregions.scheduler.RegionScheduler;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 
 import java.util.EnumSet;
-import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Consumer;
 
 @Command("rtp")
@@ -24,7 +27,6 @@ public class RtpCommand {
     
     private static final Set<Material> UNSAFE_BLOCKS = EnumSet.of(
             Material.LAVA, Material.WATER, Material.FIRE, Material.CACTUS, Material.MAGMA_BLOCK);
-    private static Random random = new Random();
     private static boolean isFolia = isFolia();
     
     @Default
@@ -62,14 +64,21 @@ public class RtpCommand {
 
     @Subcommand("help")
     public static void rtpHelp(Player player) {
-        SimpleRtp plugin = SimpleRtp.getInstance();
-        int minRange = plugin.getMinRange();
-        FileConfiguration config = plugin.getConfigFile();
-        World world = player.getWorld();
-        double maxRangeValue = getMaxRange(world, config, minRange);
+        var plugin = SimpleRtp.getInstance();
+        var minRange = plugin.getMinRange();
+        var config = plugin.getConfigFile();
+        var world = player.getWorld();
+        var maxRangeValue = getMaxRange(world, config, minRange);
+
+        var minRangeComp = Component.text(minRange, NamedTextColor.DARK_AQUA);
+        var maxRangeComp = Component.text(maxRangeValue, NamedTextColor.DARK_AQUA);
         
         player.sendRichMessage("<dark_aqua>Usage</dark_aqua><gray>: /rtp [help]</gray>");
-        player.sendRichMessage(STR."<gray>Teleports you to a safe location between <dark_aqua>\{minRange}</dark_aqua> and <dark_aqua>\{maxRangeValue}</dark_aqua> blocks.</gray>");
+        player.sendRichMessage(
+            "<gray>Teleports you to a safe location at <min-range>-<max-range> blocks from the spawn.</gray>",
+            Placeholder.component("min-range", minRangeComp),
+            Placeholder.component("max-range", maxRangeComp)
+        );
         return;
     }
     
@@ -88,6 +97,7 @@ public class RtpCommand {
             return;
         }
         
+        var random = ThreadLocalRandom.current();
         int x = random.nextInt((int) maxRange * 2) - (int) maxRange;
         int z = random.nextInt((int) maxRange * 2) - (int) maxRange;
         Location loc = new Location(world, x, 0, z);
@@ -125,10 +135,12 @@ public class RtpCommand {
         });
     }
     
-    private static Location findSafeLocationSync(World world, double maxRange, int maxAttempts, int minRange) {
+    private static Location findSafeLocationSync(World world, double maximumRange, int maxAttempts, int minRange) {
+        var random = ThreadLocalRandom.current();
+        var maxRange = (int) maximumRange;
         for (int attempt = 0; attempt < maxAttempts; attempt++) {
-            int x = random.nextInt((int) maxRange * 2) - (int) maxRange;
-            int z = random.nextInt((int) maxRange * 2) - (int) maxRange;
+            int x = random.nextInt(maxRange * 2) - maxRange;
+            int z = random.nextInt(maxRange * 2) - maxRange;
             Location loc = new Location(world, x, 0, z);
             
             if (!isWithinWorldBorder(world, loc) || !isOutsideMinRange(world, x, z, minRange)) {
