@@ -15,20 +15,26 @@ public class SimpleRtp extends JavaPlugin {
     private FileConfiguration config;
 
     private static SimpleRtp instance;
-    
+    private LocationPreloader preloader;
+
     @Override
     public void onEnable() {
-        instance = this;
         saveDefaultConfig();
-        loadConfig();
+        preloader = new LocationPreloader(this);
+        preloader.start();
 
         CommandAPI.registerCommand(RtpCommand.class);
-        getLogger().info("SimpleRTP has been enabled!");
+        getLogger().info("SimpleRTP enabled with preloader");
     }
-    
+
     @Override
     public void onDisable() {
-        getLogger().info("SimpleRTP has been disabled!");
+        preloader.stop();
+        getLogger().info("SimpleRTP disabled");
+    }
+
+    public LocationPreloader getPreloader() {
+        return preloader;
     }
     
     private void loadConfig() {
