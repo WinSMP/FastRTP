@@ -18,10 +18,12 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Consumer;
 import java.util.Set;
 import java.util.EnumSet;
+import java.util.Optional;
 
 @Command("rtp")
 @Help("Teleports you to a safe location")
@@ -30,12 +32,13 @@ public class RtpCommand {
     private static final Set<Material> UNSAFE_BLOCKS = EnumSet.of(
         Material.LAVA, Material.WATER, Material.FIRE, Material.CACTUS, Material.MAGMA_BLOCK
     );
+
+    private static SimpleRtp plugin = SimpleRtp.getInstance();
+    private static RtpConfig rtpConfig = plugin.getRtpConfig();
+    private static ExecutorService executor = plugin.getVirtualExecutor();
     
     @Default
     public static void rtp(Player player) {
-        var plugin = SimpleRtp.getInstance();
-        var rtpConfig = plugin.getRtpConfig();
-
         var minRange = rtpConfig.minRange();
         var maxAttempts = rtpConfig.maxAttempts();
 
@@ -46,6 +49,7 @@ public class RtpCommand {
         
         player.sendRichMessage("<gray>Finding a safe location...</gray>");
         
+        // FIXME: duplicated code - how do i deduplicate this without fucking up the methods' API?
         if (isFolia) {
             findSafeLocationAsync(world, maxRangeValue, 0, maxAttempts, minRange, safeLoc -> {
                 if (safeLoc != null) {
@@ -58,9 +62,9 @@ public class RtpCommand {
                 }
             });
         } else {
-            Location safeLoc = findSafeLocationSync(world, maxRangeValue, maxAttempts, minRange);
-            if (safeLoc != null) {
-                player.teleport(safeLoc);
+            var safeLoc = findSafeLocationSync(world, maxRangeValue, maxAttempts, minRange);
+            if (safeLoc.isPresent()) {
+                player.teleport(safeLoc.get());
                 player.sendRichMessage("<gray>Teleported <dark_aqua>successfully</dark_aqua>!<gray>");
             } else {
                 player.sendRichMessage("<red>Error</red><gray>: No safe location found.<gray>");
@@ -90,11 +94,10 @@ public class RtpCommand {
         return;
     }
 
-    // In RtpCommand.java
     private static void findSafeLocationAsync(
         World world, double maxRange, int attempt, int maxAttempts, int minRange, Consumer<Location> callback
     ) {
-        Thread.startVirtualThread(() -> {
+        executor.submit(() -> {
             try {
                 int totalSamples = 0;
                 var plugin = SimpleRtp.getInstance();
@@ -151,7 +154,7 @@ public class RtpCommand {
         });
     }
     
-    private static Location findSafeLocationSync(World world, double maximumRange, int maxAttempts, int minRange) {
+    private static Optional<Location> findSafeLocationSync(World world, double maximumRange, int maxAttempts, int minRange) {
         var plugin = SimpleRtp.getInstance();
         int samplesPerChunk = plugin.getRtpConfig().samplesPerChunk();
         int totalSamples = 0;
@@ -190,11 +193,11 @@ public class RtpCommand {
                     above2 == Material.AIR && 
                     !UNSAFE_BLOCKS.contains(below)) {
                     
-                    return new Location(world, x + 0.5, highestY + 1, z + 0.5);
+                    return Optional.of(new Location(world, x + 0.5, highestY + 1, z + 0.5));
                 }
             }
         }
-        return null;
+        return Optional.empty();
     }
     
     private static boolean isWithinWorldBorder(World world, Location loc) {

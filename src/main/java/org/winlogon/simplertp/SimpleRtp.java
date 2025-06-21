@@ -8,12 +8,23 @@ import io.papermc.paper.threadedregions.scheduler.RegionScheduler;
 
 import dev.jorel.commandapi.CommandAPI;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
+
 public class SimpleRtp extends JavaPlugin {
     private RegionScheduler scheduler = Bukkit.getRegionScheduler();
+    private static SimpleRtp instance;
+
     private FileConfiguration config;
     private RtpConfig rtpConfig;
-    private static SimpleRtp instance;
+
     private LocationPreloader preloader;
+    ExecutorService executor = Executors.newThreadPerTaskExecutor(
+        Thread.ofVirtual().name("rtp-", 0).factory()
+    );
+
+    private java.util.logging.Logger logger;
 
     @Override
     public void onEnable() {
@@ -21,18 +32,20 @@ public class SimpleRtp extends JavaPlugin {
 
         saveDefaultConfig();
         loadConfig();
+        logger = getLogger();
 
-        preloader = new LocationPreloader(this);
+        preloader = new LocationPreloader(this, executor, logger);
         preloader.start();
+        logger.info("RTP preloader enabled");
 
         CommandAPI.registerCommand(RtpCommand.class);
-        getLogger().info("SimpleRTP enabled with preloader");
     }
 
     @Override
     public void onDisable() {
         preloader.stop();
-        getLogger().info("SimpleRTP disabled");
+        executor.shutdown();
+        logger.info("SimpleRTP disabled");
     }
 
     public LocationPreloader getPreloader() {
@@ -63,5 +76,9 @@ public class SimpleRtp extends JavaPlugin {
     
     public RegionScheduler getRegionScheduler() {
         return scheduler;
+    }
+
+    public ExecutorService getVirtualExecutor() {
+        return executor;
     }
 }

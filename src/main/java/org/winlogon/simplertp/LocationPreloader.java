@@ -11,8 +11,10 @@ import org.bukkit.scheduler.BukkitScheduler;
 import org.bukkit.scheduler.BukkitTask;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.Optional;
+import java.util.logging.Logger;
 import java.util.concurrent.TimeUnit;
 import java.util.EnumSet;
 import java.util.Set;
@@ -29,28 +31,34 @@ public class LocationPreloader {
 
     private final int maxPoolSize;
     private final LocationPool pool;
+    private final Logger logger;
+
+    private final ExecutorService executor;
 
     private BukkitTask bukkitTask;
 
-    public LocationPreloader(SimpleRtp plugin) {
+    public LocationPreloader(SimpleRtp plugin, ExecutorService service, Logger logger) {
         var config = plugin.getRtpConfig();
 
         this.plugin = plugin;
+        this.logger = logger;
         this.maxPoolSize = config.maxPoolSize();
         this.bukkitScheduler = plugin.getServer().getScheduler();
+        this.executor = service;
 
         this.pool = new LocationPool(maxPoolSize);
         try {
             Class.forName("io.papermc.paper.threadedregions.RegionizedServer");
             globalScheduler = Bukkit.getGlobalRegionScheduler();
             isFolia = true;
-        } catch (ClassNotFoundException e) {
+        } catch (ClassNotFoundException _) {
             isFolia = false;
         }
     }
 
     /** Kick off the repeating generation task. */
     public void start() {
+        logger.info("Starting location preloader service");
         var intervalHours = plugin.getConfig().getInt("preload-interval-hours", 1);
         if (isFolia) {
             // Convert hours to ticks (20 ticks/sec * 3600 sec/hr)
@@ -74,8 +82,9 @@ public class LocationPreloader {
     }
 
     private void generateSomeSafeLocations() {
+        logger.info("Generating some safe locations");
         if (isFolia) {
-            Thread.startVirtualThread(this::doGenerateSafeLocations);
+            executor.submit(this::doGenerateSafeLocations);
         } else {
             doGenerateSafeLocations();
         }
@@ -83,6 +92,7 @@ public class LocationPreloader {
 
     /** Stop the repeating task. */
     public void stop() {
+        logger.info("Stopping location preloader");
         if (!isFolia && bukkitTask != null) {
             bukkitTask.cancel();
         }
