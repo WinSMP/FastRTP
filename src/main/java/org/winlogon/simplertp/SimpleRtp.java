@@ -10,16 +10,18 @@ import dev.jorel.commandapi.CommandAPI;
 
 public class SimpleRtp extends JavaPlugin {
     private RegionScheduler scheduler = Bukkit.getRegionScheduler();
-    private int minRange;
-    private int maxAttempts;
     private FileConfiguration config;
-
+    private RtpConfig rtpConfig;
     private static SimpleRtp instance;
     private LocationPreloader preloader;
 
     @Override
     public void onEnable() {
+        instance = this;
+
         saveDefaultConfig();
+        loadConfig();
+
         preloader = new LocationPreloader(this);
         preloader.start();
 
@@ -39,8 +41,12 @@ public class SimpleRtp extends JavaPlugin {
     
     private void loadConfig() {
         config = getConfig();
-        minRange = config.getInt("min-range", 3000);
-        maxAttempts = config.getInt("max-attempts", 50);
+        int minRange         = config.getInt("min-range", 3000);
+        int maxAttempts      = config.getInt("max-attempts", 50);
+        int maxPoolSize      = config.getInt("max-pool-size", 100);
+        int samplesPerChunk  = config.getInt("samples-per-chunk", 8);
+        int maxChunkAttempts = config.getInt("max-chunk-attempts", 10);
+        rtpConfig = new RtpConfig(minRange, maxAttempts, maxPoolSize, samplesPerChunk, maxChunkAttempts);
     }
     
     public static SimpleRtp getInstance() {
@@ -51,12 +57,8 @@ public class SimpleRtp extends JavaPlugin {
         return config;
     }
     
-    public int getMinRange() {
-        return minRange;
-    }
-    
-    public int getMaxAttempts() {
-        return maxAttempts;
+    public RtpConfig getRtpConfig() {
+        return rtpConfig;
     }
     
     public RegionScheduler getRegionScheduler() {

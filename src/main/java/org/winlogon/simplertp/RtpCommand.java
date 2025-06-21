@@ -7,6 +7,7 @@ import dev.jorel.commandapi.annotations.Subcommand;
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.WorldBorder;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -19,20 +20,29 @@ import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Consumer;
+import java.util.Set;
+import java.util.EnumSet;
 
 @Command("rtp")
 @Help("Teleports you to a safe location")
 public class RtpCommand {
     private static boolean isFolia = isFolia();
+    private static final Set<Material> UNSAFE_BLOCKS = EnumSet.of(
+        Material.LAVA, Material.WATER, Material.FIRE, Material.CACTUS, Material.MAGMA_BLOCK
+    );
     
     @Default
     public static void rtp(Player player) {
         var plugin = SimpleRtp.getInstance();
-        var minRange = plugin.getMinRange();
-        var maxAttempts = plugin.getMaxAttempts();
+        var rtpConfig = plugin.getRtpConfig();
+
+        var minRange = rtpConfig.minRange();
+        var maxAttempts = rtpConfig.maxAttempts();
+
         var config = plugin.getConfigFile();
         var world = player.getWorld();
-        var maxRangeValue = getMaxRange(world, config, minRange);
+
+        var maxRangeValue = RtpUtils.getMaxRange(world, config, minRange);
         
         player.sendRichMessage("<gray>Finding a safe location...</gray>");
         
@@ -61,10 +71,12 @@ public class RtpCommand {
     @Subcommand("help")
     public static void rtpHelp(Player player) {
         var plugin = SimpleRtp.getInstance();
-        var minRange = plugin.getMinRange();
+        var rtpConfig = plugin.getRtpConfig();
+
+        var minRange = rtpConfig.minRange();
         var config = plugin.getConfigFile();
         var world = player.getWorld();
-        var maxRangeValue = getMaxRange(world, config, minRange);
+        var maxRangeValue = RtpUtils.getMaxRange(world, config, minRange);
 
         var minRangeComp = Component.text(minRange, NamedTextColor.DARK_AQUA);
         var maxRangeComp = Component.text(maxRangeValue, NamedTextColor.DARK_AQUA);
@@ -84,45 +96,48 @@ public class RtpCommand {
     ) {
         Thread.startVirtualThread(() -> {
             try {
-                for (; attempt < maxAttempts; attempt++) {
-                    int x = ThreadLocalRandom.current().nextInt((int) maxRange * 2) - (int) maxRange;
-                    int z = ThreadLocalRandom.current().nextInt((int) maxRange * 2) - (int) maxRange;
-                    Location loc = new Location(world, x, 0, z);
-    
-                    if (!isWithinWorldBorder(world, loc) || !isOutsideMinRange(world, x, z, minRange)) {
-                        continue;
-                    }
-    
-                    int chunkX = x >> 4;
-                    int chunkZ = z >> 4;
-    
-                    // Check if chunk is loaded on main thread
-                    var isLoadedFuture = new CompletableFuture<Boolean>();
-                    Bukkit.getScheduler().callSyncMethod(SimpleRtp.getInstance(), () -> world.isChunkLoaded(chunkX, chunkZ))
-                        .whenComplete((isLoaded, ex) -> isLoadedFuture.complete(isLoaded));
-                    boolean isLoaded = isLoadedFuture.join();
-    
-                    if (isLoaded) {
-                        var yFuture = new CompletableFuture<Integer>();
-                        Bukkit.getScheduler().callSyncMethod(SimpleRtp.getInstance(), () -> findSafeY(world, x, z))
-                            .whenComplete((y, ex) -> yFuture.complete(y));
-                        int y = yFuture.join();
-                        if (y != -1) {
-                            Location safeLoc = new Location(world, x + 0.5, y + 1, z + 0.5);
-                            callback.accept(safeLoc);
-                            return;
+                int totalSamples = 0;
+                var plugin = SimpleRtp.getInstance();
+                int samplesPerChunk = plugin.getRtpConfig().samplesPerChunk();
+                
+                while (totalSamples < maxAttempts) {
+                    // Generate random chunk coordinates
+                    int chunkX = ThreadLocalRandom.current().nextInt((int) maxRange * 2) - (int) maxRange;
+                    int chunkZ = ThreadLocalRandom.current().nextInt((int) maxRange * 2) - (int) maxRange;
+                    
+                    // Load chunk asynchronously
+                    var chunkFuture = new CompletableFuture<Chunk>();
+                    world.getChunkAtAsync(chunkX, chunkZ, true, chunkFuture::complete);
+                    Chunk chunk = chunkFuture.join();
+                    
+                    // Create chunk snapshot
+                    var snap = chunk.getChunkSnapshot();
+                    
+                    // Sample multiple locations in the same chunk
+                    for (int i = 0; i < samplesPerChunk && totalSamples < maxAttempts; i++, totalSamples++) {
+                        int localX = ThreadLocalRandom.current().nextInt(16);
+                        int localZ = ThreadLocalRandom.current().nextInt(16);
+                        int x = (chunkX << 4) + localX;
+                        int z = (chunkZ << 4) + localZ;
+                        Location loc = new Location(world, x, 0, z);
+
+                        if (!isWithinWorldBorder(world, loc) || !isOutsideMinRange(world, x, z, minRange)) {
+                            continue;
                         }
-                    } else {
-                        var chunkFuture = new CompletableFuture<Chunk>();
-                        world.getChunkAtAsync(chunkX, chunkZ, true, chunkFuture::complete);
-                        chunkFuture.join(); // Wait for chunk to load without blocking main thread
-    
-                        CompletableFuture<Integer> yFuture = new CompletableFuture<>();
-                        Bukkit.getScheduler().callSyncMethod(SimpleRtp.getInstance(), () -> findSafeY(world, x, z))
-                            .whenComplete((y, ex) -> yFuture.complete(y));
-                        int y = yFuture.join();
-                        if (y != -1) {
-                            Location safeLoc = new Location(world, x + 0.5, y + 1, z + 0.5);
+
+                        // Use snapshot for fast height lookup
+                        int highestY = snap.getHighestBlockYAt(localX, localZ);
+                        if (highestY < world.getMinHeight() || highestY >= world.getMaxHeight() - 2) continue;
+
+                        var above1 = snap.getBlockType(localX, highestY + 1, localZ);
+                        var above2 = snap.getBlockType(localX, highestY + 2, localZ);
+                        var below = snap.getBlockType(localX, highestY - 1, localZ);
+
+                        if (above1 == Material.AIR && 
+                            above2 == Material.AIR && 
+                            !UNSAFE_BLOCKS.contains(below)) {
+                            
+                            Location safeLoc = new Location(world, x + 0.5, highestY + 1, z + 0.5);
                             callback.accept(safeLoc);
                             return;
                         }
@@ -137,26 +152,46 @@ public class RtpCommand {
     }
     
     private static Location findSafeLocationSync(World world, double maximumRange, int maxAttempts, int minRange) {
-        var random = ThreadLocalRandom.current();
-        var maxRange = (int) maximumRange;
-        for (int attempt = 0; attempt < maxAttempts; attempt++) {
-            int x = random.nextInt(maxRange * 2) - maxRange;
-            int z = random.nextInt(maxRange * 2) - maxRange;
-            Location loc = new Location(world, x, 0, z);
+        var plugin = SimpleRtp.getInstance();
+        int samplesPerChunk = plugin.getRtpConfig().samplesPerChunk();
+        int totalSamples = 0;
+        int maxRangeInt = (int) maximumRange;
+        
+        while (totalSamples < maxAttempts) {
+            int chunkX = ThreadLocalRandom.current().nextInt(maxRangeInt * 2) - maxRangeInt;
+            int chunkZ = ThreadLocalRandom.current().nextInt(maxRangeInt * 2) - maxRangeInt;
             
-            if (!isWithinWorldBorder(world, loc) || !isOutsideMinRange(world, x, z, minRange)) {
-                continue;
-            }
-            
-            int chunkX = x >> 4;
-            int chunkZ = z >> 4;
             if (!world.isChunkLoaded(chunkX, chunkZ)) {
                 world.loadChunk(chunkX, chunkZ);
             }
             
-            int y = findSafeY(world, x, z);
-            if (y != -1) {
-                return new Location(world, x + 0.5, y + 1, z + 0.5);
+            var chunk = world.getChunkAt(chunkX, chunkZ);
+            var snap = chunk.getChunkSnapshot();
+            
+            for (int i = 0; i < samplesPerChunk && totalSamples < maxAttempts; i++, totalSamples++) {
+                int localX = ThreadLocalRandom.current().nextInt(16);
+                int localZ = ThreadLocalRandom.current().nextInt(16);
+                int x = (chunkX << 4) + localX;
+                int z = (chunkZ << 4) + localZ;
+                Location loc = new Location(world, x, 0, z);
+
+                if (!isWithinWorldBorder(world, loc) || !isOutsideMinRange(world, x, z, minRange)) {
+                    continue;
+                }
+
+                int highestY = snap.getHighestBlockYAt(localX, localZ);
+                if (highestY < world.getMinHeight() || highestY >= world.getMaxHeight() - 2) continue;
+
+                Material above1 = world.getBlockAt(x, highestY + 1, z).getType();
+                Material above2 = world.getBlockAt(x, highestY + 2, z).getType();
+                Material below = world.getBlockAt(x, highestY - 1, z).getType();
+
+                if (above1 == Material.AIR && 
+                    above2 == Material.AIR && 
+                    !UNSAFE_BLOCKS.contains(below)) {
+                    
+                    return new Location(world, x + 0.5, highestY + 1, z + 0.5);
+                }
             }
         }
         return null;

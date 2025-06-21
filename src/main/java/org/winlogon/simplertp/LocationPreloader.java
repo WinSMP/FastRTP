@@ -1,13 +1,11 @@
 package org.winlogon.simplertp;
 
 import io.papermc.paper.threadedregions.scheduler.GlobalRegionScheduler;
-import io.papermc.paper.threadedregions.scheduler.RegionScheduler;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitScheduler;
 import org.bukkit.scheduler.BukkitTask;
 
@@ -21,22 +19,31 @@ public class LocationPreloader {
     private static final Set<Material> UNSAFE_BLOCKS = EnumSet.of(
         Material.LAVA, Material.WATER, Material.FIRE, Material.CACTUS, Material.MAGMA_BLOCK
     );
-    private final Plugin plugin;
-    private final LocationPool pool = new LocationPool();
+    private final SimpleRtp plugin;
 
-    private final boolean isFolia;
-    private final GlobalRegionScheduler globalScheduler; // only non-null on Folia
-    private final BukkitScheduler bukkitScheduler; // only non-null off-Folia
+    private boolean isFolia;
+    private GlobalRegionScheduler globalScheduler = null;
+    private final BukkitScheduler bukkitScheduler;
+
+    private final int maxPoolSize;
+    private final LocationPool pool;
 
     private BukkitTask bukkitTask;
 
-    public LocationPreloader(Plugin plugin) {
+    public LocationPreloader(SimpleRtp plugin) {
+        var config = plugin.getRtpConfig();
+
+        this.plugin = plugin;
+        this.maxPoolSize = config.maxPoolSize();
+        this.bukkitScheduler = plugin.getServer().getScheduler();
+
+        this.pool = new LocationPool(maxPoolSize);
         try {
             Class.forName("io.papermc.paper.threadedregions.RegionizedServer");
-            this.globalScheduler = Bukkit.getGlobalRegionScheduler(); // Now using GlobalRegionScheduler
-            this.isFolia = true;
+            globalScheduler = Bukkit.getGlobalRegionScheduler();
+            isFolia = true;
         } catch (ClassNotFoundException e) {
-            this.isFolia = false;
+            isFolia = false;
         }
     }
 
@@ -49,7 +56,7 @@ public class LocationPreloader {
             globalScheduler.runAtFixedRate(
                 plugin,
                 task -> generateSomeSafeLocations(),
-                0,
+                periodTicks,
                 periodTicks
             );
         } else {
@@ -78,23 +85,53 @@ public class LocationPreloader {
 
     private void generateSomeSafeLocations() {
         World world = plugin.getServer().getWorlds().get(0);
-        int attempts = 0, found = 0;
-        int maxAttempts = plugin.getConfig().getInt("max-attempts-per-hour", 20);
-        int toFind     = plugin.getConfig().getInt("locations-per-hour", 5);
+        int chunkAttempts = 0;
+        int found = 0;
+        int maxChunkAttempts = plugin.getConfig().getInt("max-chunk-attempts", 20);
+        int toFind = plugin.getConfig().getInt("locations-per-hour", 5);
+        int samplesPerChunk = plugin.getRtpConfig().samplesPerChunk();
 
-        while (attempts++ < maxAttempts && found < toFind) {
-            Location loc = pickRandomXZ(world);
-            if (!isWithinWorldBorder(world, loc) || !isOutsideMinRange(world, loc)) {
-                continue;
+        while (chunkAttempts++ < maxChunkAttempts && found < toFind) {
+            Location chunkLoc = pickRandomXZ(world);
+            int chunkX = chunkLoc.getBlockX() >> 4;
+            int chunkZ = chunkLoc.getBlockZ() >> 4;
+            
+            // Load chunk
+            if (!world.isChunkLoaded(chunkX, chunkZ)) {
+                world.loadChunk(chunkX, chunkZ);
             }
-
-            int y = findSafeY(world, loc.getBlockX(), loc.getBlockZ());
-            if (y != -1) {
-                loc.setY(y + 1);
-                loc.setX(loc.getBlockX() + 0.5);
-                loc.setZ(loc.getBlockZ() + 0.5);
-                pool.offer(loc);
-                found++;
+            var chunk = world.getChunkAt(chunkX, chunkZ);
+            var snap = chunk.getChunkSnapshot();
+            
+            // Sample multiple locations in chunk
+            for (int i = 0; i < samplesPerChunk && found < toFind; i++) {
+                int localX = ThreadLocalRandom.current().nextInt(16);
+                int localZ = ThreadLocalRandom.current().nextInt(16);
+                int x = (chunkX << 4) + localX;
+                int z = (chunkZ << 4) + localZ;
+                Location loc = new Location(world, x, 0, z);
+                
+                if (!isWithinWorldBorder(world, loc) || !isOutsideMinRange(world, loc)) {
+                    continue;
+                }
+                
+                int highestY = snap.getHighestBlockYAt(localX, localZ);
+                if (highestY < world.getMinHeight() || highestY >= world.getMaxHeight() - 2) continue;
+                
+                var above1 = snap.getBlockType(localX, highestY + 1, localZ);
+                var above2 = snap.getBlockType(localX, highestY + 2, localZ);
+                var below = snap.getBlockType(localX, highestY - 1, localZ);
+                
+                if (above1 == Material.AIR && 
+                    above2 == Material.AIR && 
+                    !UNSAFE_BLOCKS.contains(below)) {
+                    
+                    loc.setY(highestY + 1);
+                    loc.setX(loc.getBlockX() + 0.5);
+                    loc.setZ(loc.getBlockZ() + 0.5);
+                    pool.offer(loc);
+                    found++;
+                }
             }
         }
     }
@@ -107,7 +144,7 @@ public class LocationPreloader {
     }
 
     private double getMaxRange(World world, FileConfiguration config, int minRange) {
-        WorldBorder border = world.getWorldBorder();
+        var border = world.getWorldBorder();
         double defaultMaxRange = border.getSize() / 2;
         double configMaxRange = config.getDouble("max-range", defaultMaxRange);
         return Math.max(minRange, Math.min(configMaxRange, defaultMaxRange));

@@ -11,9 +11,16 @@ public class LocationPool {
     private final ConcurrentLinkedQueue<Location> ready = new ConcurrentLinkedQueue<>();
     // keeps track of which coords have been handed out already
     private final Set<Long> used = ConcurrentHashMap.newKeySet();
+    private final int maxSize;
+
+    public LocationPool(int maxSize) {
+        this.maxSize = maxSize;
+    }
 
     /** Offer a location if we haven’t used it yet. */
     public void offer(Location loc) {
+        if (ready.size() >= maxSize) return;
+        
         long key = pack(loc);
         if (used.contains(key) || ready.stream().anyMatch(l -> pack(l) == key)) return;
         ready.offer(loc);
