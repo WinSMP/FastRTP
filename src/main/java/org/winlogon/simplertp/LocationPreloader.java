@@ -2,6 +2,7 @@ package org.winlogon.simplertp;
 
 import io.papermc.paper.threadedregions.scheduler.GlobalRegionScheduler;
 import org.bukkit.Bukkit;
+import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -9,6 +10,7 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.scheduler.BukkitScheduler;
 import org.bukkit.scheduler.BukkitTask;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -71,6 +73,14 @@ public class LocationPreloader {
         }
     }
 
+    private void generateSomeSafeLocations() {
+        if (isFolia) {
+            Thread.startVirtualThread(this::doGenerateSafeLocations);
+        } else {
+            doGenerateSafeLocations();
+        }
+    }
+
     /** Stop the repeating task. */
     public void stop() {
         if (!isFolia && bukkitTask != null) {
@@ -83,7 +93,7 @@ public class LocationPreloader {
         return Optional.ofNullable(pool.poll());
     }
 
-    private void generateSomeSafeLocations() {
+    private void doGenerateSafeLocations() {
         World world = plugin.getServer().getWorlds().get(0);
         int chunkAttempts = 0;
         int found = 0;
@@ -96,15 +106,29 @@ public class LocationPreloader {
             int chunkX = chunkLoc.getBlockX() >> 4;
             int chunkZ = chunkLoc.getBlockZ() >> 4;
             
-            // Load chunk
-            if (!world.isChunkLoaded(chunkX, chunkZ)) {
-                world.loadChunk(chunkX, chunkZ);
+            Chunk chunk;
+            // asynchronous loading for Folia
+            if (isFolia) {
+                CompletableFuture<Chunk> future = new CompletableFuture<>();
+                world.getChunkAtAsync(chunkX, chunkZ, true, future::complete);
+                try {
+                    chunk = future.join();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    continue;
+                }
+            // synchronous loading for Bukkit
+            } else {
+                if (!world.isChunkLoaded(chunkX, chunkZ)) {
+                    world.loadChunk(chunkX, chunkZ);
+                }
+                chunk = world.getChunkAt(chunkX, chunkZ);
             }
-            var chunk = world.getChunkAt(chunkX, chunkZ);
+            
             var snap = chunk.getChunkSnapshot();
             
-            // Sample multiple locations in chunk
-            for (int i = 0; i < samplesPerChunk && found < toFind; i++) {
+            // sample multiple locations in chunk
+            for (int i = 0; i < samplesPerChunk && found < toFind; i++, found++) {
                 int localX = ThreadLocalRandom.current().nextInt(16);
                 int localZ = ThreadLocalRandom.current().nextInt(16);
                 int x = (chunkX << 4) + localX;
@@ -162,6 +186,7 @@ public class LocationPreloader {
         ) >= minRange * minRange;
     }
 
+    // TODO: should this method be used in the case the location pool is empty?
     private static int findSafeY(World world, int x, int z) {
         int minHeight = world.getMinHeight();
         int high = world.getMaxHeight();
@@ -184,13 +209,13 @@ public class LocationPreloader {
             return -1;
         }
         
-        Material above1 = world.getBlockAt(x, highestSolidY + 1, z).getType();
-        Material above2 = world.getBlockAt(x, highestSolidY + 2, z).getType();
+        var above1 = world.getBlockAt(x, highestSolidY + 1, z).getType();
+        var above2 = world.getBlockAt(x, highestSolidY + 2, z).getType();
         if (above1 != Material.AIR || above2 != Material.AIR) {
             return -1;
         }
         
-        Material below = world.getBlockAt(x, highestSolidY - 1, z).getType();
+        var below = world.getBlockAt(x, highestSolidY - 1, z).getType();
         return UNSAFE_BLOCKS.contains(below) ? -1 : highestSolidY;
     }
 }
