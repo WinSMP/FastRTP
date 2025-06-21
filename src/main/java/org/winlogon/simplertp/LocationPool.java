@@ -1,10 +1,11 @@
 package org.winlogon.simplertp;
 
+import org.bukkit.Location;
+import org.jetbrains.annotations.Nullable;
+
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import org.jetbrains.annotations.Nullable;
-import org.bukkit.Location;
 
 public class LocationPool {
     // thread‑safe queue of pre‑validated safe locations
