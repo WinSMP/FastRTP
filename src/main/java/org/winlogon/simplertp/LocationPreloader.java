@@ -62,14 +62,17 @@ public class LocationPreloader {
         World world = plugin.getServer().getWorlds().get(0);
         int maxChunkAttempts = plugin.getConfig().getInt("max-chunk-attempts", 20);
         int toFind = plugin.getConfig().getInt("locations-per-hour", 5);
-        int samplesPerChunk = plugin.getRtpConfig().samplesPerChunk();
-        Logger logger = this.logger;
+        int perChunkLimit = Math.max(2, toFind / maxChunkAttempts);
 
-        logger.info("Starting preload: maxChunkAttempts=" + maxChunkAttempts
-                + ", toFind=" + toFind + ", samplesPerChunk=" + samplesPerChunk);
 
-        AtomicInteger attempts = new AtomicInteger(0);
-        AtomicInteger found = new AtomicInteger(0);
+        logger.info("Starting preload");
+        logger.info(
+            "I will try to find %d locations in %d chunks, with %d samples per chunk"
+            .formatted(perChunkLimit, maxChunkAttempts, toFind)
+        );
+
+        var attempts = new AtomicInteger(0);
+        var found = new AtomicInteger(0);
 
         CompletableFuture<Void> chain = CompletableFuture.completedFuture(null);
 
@@ -83,7 +86,7 @@ public class LocationPreloader {
                 return world.getChunkAtAsync(chunkX, chunkZ, true).thenAccept(chunk -> {
                     attempts.incrementAndGet();
                     var snap = chunk.getChunkSnapshot();
-                    for (int s = 0; s < samplesPerChunk && found.get() < toFind; s++) {
+                    for (int s = 0; s < perChunkLimit && found.get() < toFind; s++) {
                         int localX = ThreadLocalRandom.current().nextInt(16);
                         int localZ = ThreadLocalRandom.current().nextInt(16);
                         int x = (chunk.getX() << 4) + localX;
