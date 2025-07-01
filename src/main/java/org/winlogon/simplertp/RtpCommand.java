@@ -4,181 +4,145 @@ import dev.jorel.commandapi.annotations.Command;
 import dev.jorel.commandapi.annotations.Default;
 import dev.jorel.commandapi.annotations.Help;
 import dev.jorel.commandapi.annotations.Subcommand;
+
 import org.bukkit.Bukkit;
+import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.WorldBorder;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
-import io.papermc.paper.threadedregions.scheduler.RegionScheduler;
+import org.winlogon.asynccraftr.AsyncCraftr;
 
-import java.util.EnumSet;
-import java.util.Random;
-import java.util.Set;
+import io.papermc.paper.threadedregions.scheduler.RegionScheduler;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
+
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Consumer;
+import java.util.logging.Logger;
+import java.util.Set;
+import java.util.EnumSet;
+import java.util.Optional;
 
 @Command("rtp")
 @Help("Teleports you to a safe location")
 public class RtpCommand {
-    
-    private static final Set<Material> UNSAFE_BLOCKS = EnumSet.of(
-            Material.LAVA, Material.WATER, Material.FIRE, Material.CACTUS, Material.MAGMA_BLOCK);
-    private static Random random = new Random();
     private static boolean isFolia = isFolia();
+    private static final Set<Material> UNSAFE_BLOCKS = EnumSet.of(
+        Material.LAVA, Material.WATER, Material.FIRE, Material.CACTUS, Material.MAGMA_BLOCK
+    );
+
+    private static SimpleRtp plugin = SimpleRtp.getInstance();
+    private static RtpConfig rtpConfig = plugin.getRtpConfig();
+    private static Logger logger = plugin.getLogger();
     
     @Default
     public static void rtp(Player player) {
-        SimpleRtp plugin = SimpleRtp.getInstance();
-        int minRange = plugin.getMinRange();
-        int maxAttempts = plugin.getMaxAttempts();
-        FileConfiguration config = plugin.getConfigFile();
-        World world = player.getWorld();
-        double maxRangeValue = getMaxRange(world, config, minRange);
-        
+        var plugin = SimpleRtp.getInstance();
+        var config = plugin.getConfigFile();
+        var world  = player.getWorld();
+        var minRange = plugin.getRtpConfig().minRange();
+        var maxAttempts = plugin.getRtpConfig().maxAttempts();
+        var maxRangeValue = RtpUtils.getMaxRange(world, config, minRange);
+
         player.sendRichMessage("<gray>Finding a safe location...</gray>");
-        
-        if (isFolia) {
-            findSafeLocationAsync(world, maxRangeValue, 0, maxAttempts, minRange, safeLoc -> {
-                if (safeLoc != null) {
-                    player.getScheduler().execute(plugin, () -> {
-                        player.teleportAsync(safeLoc);
-                        player.sendRichMessage("<gray>Teleported <dark_aqua>successfully</dark_aqua>!<gray>");
-                    }, null, 0);
-                } else {
-                    player.sendRichMessage("<red>Error</red><gray>: No safe location found.<gray>");
-                }
-            });
-        } else {
-            Location safeLoc = findSafeLocationSync(world, maxRangeValue, maxAttempts, minRange);
+
+        var preloadedLocation = plugin.getPreloader().nextPreloadedLocation();
+
+        CompletableFuture<Location> locFuture = preloadedLocation
+            .map(CompletableFuture::completedFuture)
+            .orElseGet(() -> AsyncCraftr.runAsync(plugin, () ->
+                    findSafeLocation(world, maxRangeValue, maxAttempts, minRange)
+                )
+            );
+
+        locFuture.thenAccept(safeLoc -> {
             if (safeLoc != null) {
-                player.teleport(safeLoc);
-                player.sendRichMessage("<gray>Teleported <dark_aqua>successfully</dark_aqua>!<gray>");
+                AsyncCraftr.runSyncForEntity(plugin, player, () -> {
+                    player.teleportAsync(safeLoc);
+                    player.sendRichMessage("<gray>Teleported <dark_aqua>successfully</dark_aqua>!");
+                    return null;
+                });
             } else {
-                player.sendRichMessage("<red>Error</red><gray>: No safe location found.<gray>");
+                player.sendRichMessage("<red>Error</red><gray>: No safe location found.</gray>");
             }
-        }
+        });
     }
 
     @Subcommand("help")
     public static void rtpHelp(Player player) {
-        SimpleRtp plugin = SimpleRtp.getInstance();
-        int minRange = plugin.getMinRange();
-        FileConfiguration config = plugin.getConfigFile();
-        World world = player.getWorld();
-        double maxRangeValue = getMaxRange(world, config, minRange);
+        var plugin = SimpleRtp.getInstance();
+        var rtpConfig = plugin.getRtpConfig();
+
+        var minRange = rtpConfig.minRange();
+        var config = plugin.getConfigFile();
+        var world = player.getWorld();
+        var maxRangeValue = RtpUtils.getMaxRange(world, config, minRange);
+
+        var minRangeComp = Component.text(minRange, NamedTextColor.DARK_AQUA);
+        var maxRangeComp = Component.text(maxRangeValue, NamedTextColor.DARK_AQUA);
         
         player.sendRichMessage("<dark_aqua>Usage</dark_aqua><gray>: /rtp [help]</gray>");
-        player.sendRichMessage(STR."<gray>Teleports you to a safe location between <dark_aqua>\{minRange}</dark_aqua> and <dark_aqua>\{maxRangeValue}</dark_aqua> blocks.</gray>");
+        player.sendRichMessage(
+            "<gray>Teleports you to a safe location at <min-range>-<max-range> blocks from the spawn.</gray>",
+            Placeholder.component("min-range", minRangeComp),
+            Placeholder.component("max-range", maxRangeComp)
+        );
         return;
     }
-    
-    private static double getMaxRange(World world, FileConfiguration config, int minRange) {
-        WorldBorder border = world.getWorldBorder();
-        double defaultMaxRange = border.getSize() / 2;
-        double configMaxRange = config.getDouble("max-range", defaultMaxRange);
-        return Math.max(minRange, Math.min(configMaxRange, defaultMaxRange));
-    }
-    
-    private static void findSafeLocationAsync(
-        World world, double maxRange, int attempt, int maxAttempts, int minRange, Consumer<Location> callback
+
+    private static Location findSafeLocation(
+        World world, double maximumRange, int maxAttempts, int minRange
     ) {
-        if (attempt >= maxAttempts) {
-            callback.accept(null);
-            return;
-        }
+        var plugin = SimpleRtp.getInstance();
+        int samplesPerChunk = plugin.getRtpConfig().samplesPerChunk();
+        int totalSamples = 0;
+        int maxRangeInt = (int) maximumRange;
         
-        int x = random.nextInt((int) maxRange * 2) - (int) maxRange;
-        int z = random.nextInt((int) maxRange * 2) - (int) maxRange;
-        Location loc = new Location(world, x, 0, z);
-        
-        if (!isWithinWorldBorder(world, loc) || !isOutsideMinRange(world, x, z, minRange)) {
-            findSafeLocationAsync(world, maxRange, attempt + 1, maxAttempts, minRange, callback);
-            return;
-        }
-        
-        RegionScheduler scheduler = Bukkit.getRegionScheduler();
-        scheduler.execute(SimpleRtp.getInstance(), loc, () -> {
-            int chunkX = x >> 4;
-            int chunkZ = z >> 4;
-            if (world.isChunkLoaded(chunkX, chunkZ)) {
-                int y = findSafeY(world, x, z);
-                if (y != -1) {
-                    callback.accept(new Location(world, x + 0.5, y + 1, z + 0.5));
-                } else {
-                    findSafeLocationAsync(world, maxRange, attempt + 1, maxAttempts, minRange, callback);
+        while (totalSamples < maxAttempts) {
+            int chunkX = ThreadLocalRandom.current().nextInt(maxRangeInt * 2) - maxRangeInt;
+            int chunkZ = ThreadLocalRandom.current().nextInt(maxRangeInt * 2) - maxRangeInt;
+            
+            try {
+                var chunkFuture = world.getChunkAtAsync(chunkX, chunkZ, true);
+                
+                var snap = chunkFuture.get().getChunkSnapshot();
+                
+                for (int i = 0; i < samplesPerChunk && totalSamples < maxAttempts; i++, totalSamples++) {
+                    var localX = ThreadLocalRandom.current().nextInt(16);
+                    var localZ = ThreadLocalRandom.current().nextInt(16);
+                    var x = (chunkX << 4) + localX;
+                    var z = (chunkZ << 4) + localZ;
+                    var loc = new Location(world, x, 0, z);
+
+                    if (!isWithinWorldBorder(world, loc) || !isOutsideMinRange(world, x, z, minRange)) {
+                        continue;
+                    }
+
+                    int highestY = snap.getHighestBlockYAt(localX, localZ);
+                    if (highestY < world.getMinHeight() || highestY >= world.getMaxHeight() - 2) continue;
+
+                    Material above1 = snap.getBlockType(localX, highestY + 1, localZ);
+                    Material above2 = snap.getBlockType(localX, highestY + 2, localZ);
+                    Material below = snap.getBlockType(localX, highestY - 1, localZ);
+
+                    if (above1 == Material.AIR && 
+                        above2 == Material.AIR && 
+                        !UNSAFE_BLOCKS.contains(below)) {
+                        
+                        return new Location(world, x + 0.5, highestY + 1, z + 0.5);
+                    }
                 }
-            } else {
-                world.getChunkAtAsync(chunkX, chunkZ, true, true, chunk -> {
-                    if (!chunk.isLoaded()) {
-                        findSafeLocationAsync(world, maxRange, attempt + 1, maxAttempts, minRange, callback);
-                        return;
-                    }
-                    int y = findSafeY(world, x, z);
-                    if (y != -1) {
-                        callback.accept(new Location(world, x + 0.5, y + 1, z + 0.5));
-                    } else {
-                        findSafeLocationAsync(world, maxRange, attempt + 1, maxAttempts, minRange, callback);
-                    }
-                });
-            }
-        });
-    }
-    
-    private static Location findSafeLocationSync(World world, double maxRange, int maxAttempts, int minRange) {
-        for (int attempt = 0; attempt < maxAttempts; attempt++) {
-            int x = random.nextInt((int) maxRange * 2) - (int) maxRange;
-            int z = random.nextInt((int) maxRange * 2) - (int) maxRange;
-            Location loc = new Location(world, x, 0, z);
-            
-            if (!isWithinWorldBorder(world, loc) || !isOutsideMinRange(world, x, z, minRange)) {
-                continue;
-            }
-            
-            int chunkX = x >> 4;
-            int chunkZ = z >> 4;
-            if (!world.isChunkLoaded(chunkX, chunkZ)) {
-                world.loadChunk(chunkX, chunkZ);
-            }
-            
-            int y = findSafeY(world, x, z);
-            if (y != -1) {
-                return new Location(world, x + 0.5, y + 1, z + 0.5);
+            } catch (Exception e) {
+                logger.info("Error finding safe location" + e.getMessage());
             }
         }
         return null;
-    }
-    
-    private static int findSafeY(World world, int x, int z) {
-        int minHeight = world.getMinHeight();
-        int high = world.getMaxHeight();
-        int low = (int) (minHeight + (high - minHeight) / 3.75);
-        int highestSolidY = -1;
-        
-        while (low <= high) {
-            int mid = (low + high) / 2;
-            Material block = world.getBlockAt(x, mid, z).getType();
-            
-            if (block.isSolid()) {
-                highestSolidY = mid;
-                low = mid + 1;
-            } else {
-                high = mid - 1;
-            }
-        }
-        
-        if (highestSolidY == -1) {
-            return -1;
-        }
-        
-        Material above1 = world.getBlockAt(x, highestSolidY + 1, z).getType();
-        Material above2 = world.getBlockAt(x, highestSolidY + 2, z).getType();
-        if (above1 != Material.AIR || above2 != Material.AIR) {
-            return -1;
-        }
-        
-        Material below = world.getBlockAt(x, highestSolidY - 1, z).getType();
-        return UNSAFE_BLOCKS.contains(below) ? -1 : highestSolidY;
     }
     
     private static boolean isWithinWorldBorder(World world, Location loc) {

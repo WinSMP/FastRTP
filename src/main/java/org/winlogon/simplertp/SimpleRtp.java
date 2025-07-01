@@ -10,31 +10,47 @@ import dev.jorel.commandapi.CommandAPI;
 
 public class SimpleRtp extends JavaPlugin {
     private RegionScheduler scheduler = Bukkit.getRegionScheduler();
-    private int minRange;
-    private int maxAttempts;
-    private FileConfiguration config;
-
     private static SimpleRtp instance;
-    
+
+    private FileConfiguration config;
+    private RtpConfig rtpConfig;
+
+    private LocationPreloader preloader;
+    private java.util.logging.Logger logger;
+
     @Override
     public void onEnable() {
         instance = this;
+
         saveDefaultConfig();
         loadConfig();
+        logger = getLogger();
+
+        preloader = new LocationPreloader(this, logger);
+        preloader.start();
+        logger.info("RTP preloader enabled");
 
         CommandAPI.registerCommand(RtpCommand.class);
-        getLogger().info("SimpleRTP has been enabled!");
     }
-    
+
     @Override
     public void onDisable() {
-        getLogger().info("SimpleRTP has been disabled!");
+        preloader.stop();
+        logger.info("SimpleRTP disabled");
+    }
+
+    public LocationPreloader getPreloader() {
+        return preloader;
     }
     
     private void loadConfig() {
         config = getConfig();
-        minRange = config.getInt("min-range", 3000);
-        maxAttempts = config.getInt("max-attempts", 50);
+        int minRange         = config.getInt("min-range", 3000);
+        int maxAttempts      = config.getInt("max-attempts", 50);
+        int maxPoolSize      = config.getInt("max-pool-size", 100);
+        int samplesPerChunk  = config.getInt("samples-per-chunk", 8);
+        int maxChunkAttempts = config.getInt("max-chunk-attempts", 10);
+        rtpConfig = new RtpConfig(minRange, maxAttempts, maxPoolSize, samplesPerChunk, maxChunkAttempts);
     }
     
     public static SimpleRtp getInstance() {
@@ -45,12 +61,8 @@ public class SimpleRtp extends JavaPlugin {
         return config;
     }
     
-    public int getMinRange() {
-        return minRange;
-    }
-    
-    public int getMaxAttempts() {
-        return maxAttempts;
+    public RtpConfig getRtpConfig() {
+        return rtpConfig;
     }
     
     public RegionScheduler getRegionScheduler() {

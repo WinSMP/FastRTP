@@ -1,6 +1,7 @@
 main: "${PACKAGE}.SimpleRtp"
 name: "${NAME}"
 version: "${VERSION}"
+loader: "${PACKAGE}.RtpLoader"
 api-version: "1.21"
 author: winlogon
 description: Teleport to a random place, safely
