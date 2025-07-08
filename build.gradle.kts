@@ -3,7 +3,7 @@ import java.util.Date
 import java.util.TimeZone
 
 plugins {
-    id("com.gradleup.shadow") version "8.3.7"
+    id("com.gradleup.shadow") version "8.3.8"
     id("java")
 }
 
@@ -76,15 +76,14 @@ repositories {
 
 dependencies {
     annotationProcessor("dev.jorel:commandapi-annotations:10.1.1")
-
     compileOnly("dev.jorel:commandapi-annotations:10.1.1")
-    compileOnly("io.papermc.paper:paper-api:1.21.6-R0.1-SNAPSHOT")
+    compileOnly("io.papermc.paper:paper-api:1.21.7-R0.1-SNAPSHOT")
     compileOnly("org.winlogon:asynccraftr:0.1.0")
 
     implementation("com.github.walker84837:JResult:1.3.0")
-    testImplementation("io.papermc.paper:paper-api:1.21.6-R0.1-SNAPSHOT")
+    testImplementation("io.papermc.paper:paper-api:1.21.7-R0.1-SNAPSHOT")
     testImplementation("org.junit.jupiter:junit-jupiter:5.13.2")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.13.2")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.13.3")
 }
 
 tasks.test {
