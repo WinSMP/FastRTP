@@ -23,6 +23,14 @@ public class RtpLoader implements PluginLoader {
 
         resolver.addRepository(
             new RemoteRepository.Builder(
+                "jitpack",
+                "default",
+                "https://jitpack.io"
+            ).build()
+        );
+
+        resolver.addRepository(
+            new RemoteRepository.Builder(
                 "winlogon",
                 "default",
                 "https://maven.winlogon.org/releases"
@@ -32,6 +40,13 @@ public class RtpLoader implements PluginLoader {
         resolver.addDependency(
             new Dependency(
                 new DefaultArtifact("org.winlogon:asynccraftr:0.1.0"),
+                null
+            )
+        );
+
+        resolver.addDependency(
+            new Dependency(
+                new DefaultArtifact("com.github.walker84837:JResult:1.3.0"),
                 null
             )
         );
