@@ -1,8 +1,26 @@
 # Configuration for SimpleRTP
 
-# Range of distance to teleport a player
+# Minimum range from spawn that RTP locations can be generated in
 min-range: 3000
-max-range: 50000
 
-# Maximum number of attempts to find a safe location
+# Maximum distance from spawn or world border to search for RTP locations.
+# Defaults to half the world border size if not set.
+max-range: 6000
+
+# Maximum number of attempts to find a safe RTP location before giving up
 max-attempts: 50
+
+# Maximum number of locations stored in the preloaded location pool
+max-pool-size: 100
+
+# Number of random samples checked per chunk when searching for safe locations
+samples-per-chunk: 8
+
+# Maximum number of chunks to attempt loading in the preloading process per hour
+max-chunk-attempts: 10
+
+# Interval in hours between each location preloading cycle
+preload-interval-hours: 1
+
+# Number of safe locations to find and preload per hour
+locations-per-hour: 5
