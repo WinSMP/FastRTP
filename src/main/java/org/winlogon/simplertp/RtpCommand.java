@@ -3,6 +3,7 @@ package org.winlogon.simplertp;
 import dev.jorel.commandapi.annotations.Command;
 import dev.jorel.commandapi.annotations.Default;
 import dev.jorel.commandapi.annotations.Help;
+import dev.jorel.commandapi.annotations.Permission;
 import dev.jorel.commandapi.annotations.Subcommand;
 
 import org.bukkit.Bukkit;
@@ -16,20 +17,22 @@ import org.bukkit.entity.Player;
 import org.winlogon.asynccraftr.AsyncCraftr;
 
 import io.papermc.paper.threadedregions.scheduler.RegionScheduler;
+
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 
+import java.util.EnumSet;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Consumer;
 import java.util.logging.Logger;
-import java.util.Set;
-import java.util.EnumSet;
-import java.util.Optional;
 
 @Command("rtp")
+@Permission("simplertp.rtp")
 @Help("Teleports you to a safe location")
 public class RtpCommand {
     private static boolean isFolia = isFolia();

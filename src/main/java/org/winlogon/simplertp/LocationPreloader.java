@@ -66,10 +66,7 @@ public class LocationPreloader {
 
 
         logger.info("Starting preload");
-        logger.info(
-            "I will try to find %d locations in %d chunks, with %d samples per chunk"
-            .formatted(perChunkLimit, maxChunkAttempts, toFind)
-        );
+        logger.info(STR."I will try to find \{perChunkLimit} locations in \{maxChunkAttempts} chunks, with \{toFind} samples per chunk");
 
         var attempts = new AtomicInteger(0);
         var found = new AtomicInteger(0);
