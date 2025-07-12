@@ -50,7 +50,8 @@ public class SimpleRtp extends JavaPlugin {
         int maxPoolSize      = config.getInt("max-pool-size", 100);
         int samplesPerChunk  = config.getInt("samples-per-chunk", 8);
         int maxChunkAttempts = config.getInt("max-chunk-attempts", 10);
-        rtpConfig = new RtpConfig(minRange, maxAttempts, maxPoolSize, samplesPerChunk, maxChunkAttempts);
+        double cfgMaxRange   = config.getDouble("max-range", -1.0);
+        rtpConfig = new RtpConfig(minRange, maxAttempts, maxPoolSize, samplesPerChunk, maxChunkAttempts, cfgMaxRange);
     }
     
     public static SimpleRtp getInstance() {

@@ -41,17 +41,16 @@ public class RtpCommand {
     );
 
     private static SimpleRtp plugin = SimpleRtp.getInstance();
-    private static RtpConfig rtpConfig = plugin.getRtpConfig();
+    private static RtpConfig config = plugin.getRtpConfig();
     private static Logger logger = plugin.getLogger();
     
     @Default
     public static void rtp(Player player) {
         var plugin = SimpleRtp.getInstance();
-        var config = plugin.getConfigFile();
         var world  = player.getWorld();
         var minRange = plugin.getRtpConfig().minRange();
         var maxAttempts = plugin.getRtpConfig().maxAttempts();
-        var maxRangeValue = RtpUtils.getMaxRange(world, config, minRange);
+        var maxRangeValue = config.getMaxRange(world);
 
         player.sendRichMessage("<gray>Finding a safe location...</gray>");
 
@@ -59,11 +58,7 @@ public class RtpCommand {
 
         CompletableFuture<Location> locFuture = preloadedLocation
             .map(CompletableFuture::completedFuture)
-            .orElseGet(() -> AsyncCraftr.runAsync(plugin, () ->
-                    findSafeLocation(world, maxRangeValue, maxAttempts, minRange)
-                )
-            );
-
+            .orElseGet(() -> AsyncCraftr.runAsync(plugin, () -> findSafeLocation(world, maxRangeValue, maxAttempts, minRange) ));
         locFuture.thenAccept(safeLoc -> {
             if (safeLoc != null) {
                 AsyncCraftr.runSyncForEntity(plugin, player, () -> {
@@ -79,13 +74,11 @@ public class RtpCommand {
 
     @Subcommand("help")
     public static void rtpHelp(Player player) {
-        var plugin = SimpleRtp.getInstance();
-        var rtpConfig = plugin.getRtpConfig();
+        var rtpConfig = SimpleRtp.getInstance().getRtpConfig();
 
         var minRange = rtpConfig.minRange();
-        var config = plugin.getConfigFile();
         var world = player.getWorld();
-        var maxRangeValue = RtpUtils.getMaxRange(world, config, minRange);
+        var maxRangeValue = rtpConfig.getMaxRange(world);
 
         var minRangeComp = Component.text(minRange, NamedTextColor.DARK_AQUA);
         var maxRangeComp = Component.text(maxRangeValue, NamedTextColor.DARK_AQUA);

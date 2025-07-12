@@ -26,11 +26,11 @@ public class LocationPreloader {
     private final int maxPoolSize;
     private final LocationPool pool;
     private final Logger logger;
+    private final RtpConfig config;
 
     public LocationPreloader(SimpleRtp plugin, Logger logger) {
-        var config = plugin.getRtpConfig();
-
         this.plugin = plugin;
+        this.config = plugin.getRtpConfig();
         this.logger = logger;
         this.maxPoolSize = config.maxPoolSize();
 
@@ -78,8 +78,11 @@ public class LocationPreloader {
                 if (found.get() >= toFind) {
                     return CompletableFuture.completedFuture(null);
                 }
-                int chunkX = ThreadLocalRandom.current().nextInt(getRange(world) * 2) - getRange(world);
-                int chunkZ = ThreadLocalRandom.current().nextInt(getRange(world) * 2) - getRange(world);
+
+                int maxRange = (int) Math.round(config.getMaxRange(world));
+                int chunkX = ThreadLocalRandom.current().nextInt(maxRange * 2) - maxRange;
+                int chunkZ = ThreadLocalRandom.current().nextInt(maxRange * 2) - maxRange;
+
                 return world.getChunkAtAsync(chunkX, chunkZ, true).thenAccept(chunk -> {
                     attempts.incrementAndGet();
                     var snap = chunk.getChunkSnapshot();
@@ -104,13 +107,6 @@ public class LocationPreloader {
             logger.info("Preload cycle done: attempted " + attempts.get()
                     + " chunks, found " + found.get() + " locations.");
         });
-    }
-
-    private int getRange(World w) {
-        int minRange = plugin.getConfig().getInt("min-range", 3000);
-        double borderRange = w.getWorldBorder().getSize() / 2.0;
-        double cfgMax = plugin.getConfig().getDouble("max-range", borderRange);
-        return (int)Math.max(minRange, Math.min(cfgMax, borderRange));
     }
 
     private boolean isValidChunkSample(World world, ChunkSnapshot snap, int x, int z) {
