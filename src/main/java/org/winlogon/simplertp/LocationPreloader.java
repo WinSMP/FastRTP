@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 package org.winlogon.simplertp;
 
 import org.bukkit.ChunkSnapshot;
