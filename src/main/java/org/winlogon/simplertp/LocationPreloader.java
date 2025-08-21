@@ -66,8 +66,8 @@ public class LocationPreloader {
         int perChunkLimit = Math.max(2, toFind / maxChunkAttempts);
 
 
-        logger.info("Starting preload");
-        logger.info(STR."I will try to find \{perChunkLimit} locations in \{maxChunkAttempts} chunks, with \{toFind} samples per chunk");
+        logger.fine("Starting preload");
+        logger.fine(STR."I will try to find \{perChunkLimit} locations in \{maxChunkAttempts} chunks, with \{toFind} samples per chunk");
 
         var attempts = new AtomicInteger(0);
         var found = new AtomicInteger(0);
@@ -109,7 +109,7 @@ public class LocationPreloader {
         }
 
         chain.whenComplete((v, ex) -> {
-            logger.info("Preload cycle done: attempted " + attempts.get()
+            logger.fine("Preload cycle done: attempted " + attempts.get()
                     + " chunks, found " + found.get() + " locations.");
         });
     }
