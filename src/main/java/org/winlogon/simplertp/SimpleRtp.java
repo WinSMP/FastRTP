@@ -1,16 +1,15 @@
 // SPDX-License-Identifier: MPL-2.0
 package org.winlogon.simplertp;
 
-import org.bukkit.Bukkit;
+import java.time.Duration;
+
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
-
-import io.papermc.paper.threadedregions.scheduler.RegionScheduler;
+import org.winlogon.simplertp.config.PreloaderConfig;
 
 import dev.jorel.commandapi.CommandAPI;
 
 public class SimpleRtp extends JavaPlugin {
-    private RegionScheduler scheduler = Bukkit.getRegionScheduler();
     private static SimpleRtp instance;
 
     private FileConfiguration config;
@@ -46,13 +45,30 @@ public class SimpleRtp extends JavaPlugin {
     
     private void loadConfig() {
         config = getConfig();
+
         int minRange         = config.getInt("min-range", 3000);
-        int maxAttempts      = config.getInt("max-attempts", 50);
         int maxPoolSize      = config.getInt("max-pool-size", 100);
+        int maxPoolMultiplier = config.getInt("max-pool-multiplier", 5);
         int samplesPerChunk  = config.getInt("samples-per-chunk", 8);
-        int maxChunkAttempts = config.getInt("max-chunk-attempts", 10);
-        double cfgMaxRange   = config.getDouble("max-range", -1.0);
-        rtpConfig = new RtpConfig(minRange, maxAttempts, maxPoolSize, samplesPerChunk, maxChunkAttempts, cfgMaxRange);
+
+        var preloader = config.getConfigurationSection("preloader");
+
+        int maxAttempts      = preloader.getInt("max-attempts", 50);
+        int maxChunkAttempts = preloader.getInt("max-chunk-attempts", 10);
+        var preloadInterval  = Duration.ofHours(preloader.getInt("preload-interval-hours", 1));
+        var locationsPerHour = preloader.getInt("locations-per-hour", 5);
+        double cfgMaxRange   = preloader.getDouble("max-range", -1.0);
+
+        var preloaderConfig = new PreloaderConfig(maxAttempts, maxChunkAttempts, locationsPerHour, preloadInterval);
+
+        rtpConfig = new RtpConfig(
+            minRange,
+            maxPoolSize,
+            maxPoolMultiplier,
+            samplesPerChunk,
+            cfgMaxRange,
+            preloaderConfig
+        );
     }
     
     public static SimpleRtp getInstance() {
@@ -65,9 +81,5 @@ public class SimpleRtp extends JavaPlugin {
     
     public RtpConfig getRtpConfig() {
         return rtpConfig;
-    }
-    
-    public RegionScheduler getRegionScheduler() {
-        return scheduler;
     }
 }
