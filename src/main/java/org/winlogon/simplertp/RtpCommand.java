@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 package org.winlogon.simplertp;
 
 import dev.jorel.commandapi.annotations.Command;
@@ -99,10 +100,14 @@ public class RtpCommand {
         int samplesPerChunk = plugin.getRtpConfig().samplesPerChunk();
         int totalSamples = 0;
         int maxRangeInt = (int) maximumRange;
+
+        int chunkRange = maxRangeInt / 16;
+        int bound = chunkRange * 2 + 1;
+
         
         while (totalSamples < maxAttempts) {
-            int chunkX = ThreadLocalRandom.current().nextInt(maxRangeInt * 2) - maxRangeInt;
-            int chunkZ = ThreadLocalRandom.current().nextInt(maxRangeInt * 2) - maxRangeInt;
+            int chunkX = ThreadLocalRandom.current().nextInt(bound) - maxRangeInt;
+            int chunkZ = ThreadLocalRandom.current().nextInt(bound) - maxRangeInt;
             
             try {
                 var chunkFuture = world.getChunkAtAsync(chunkX, chunkZ, true);

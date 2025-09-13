@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MPL-2.0
 package org.winlogon.simplertp;
 
 import org.bukkit.ChunkSnapshot;
@@ -65,8 +66,8 @@ public class LocationPreloader {
         int perChunkLimit = Math.max(2, toFind / maxChunkAttempts);
 
 
-        logger.info("Starting preload");
-        logger.info(STR."I will try to find \{perChunkLimit} locations in \{maxChunkAttempts} chunks, with \{toFind} samples per chunk");
+        logger.fine("Starting preload");
+        logger.fine(STR."I will try to find \{perChunkLimit} locations in \{maxChunkAttempts} chunks, with \{toFind} samples per chunk");
 
         var attempts = new AtomicInteger(0);
         var found = new AtomicInteger(0);
@@ -80,8 +81,12 @@ public class LocationPreloader {
                 }
 
                 int maxRange = (int) Math.round(config.getMaxRange(world));
-                int chunkX = ThreadLocalRandom.current().nextInt(maxRange * 2) - maxRange;
-                int chunkZ = ThreadLocalRandom.current().nextInt(maxRange * 2) - maxRange;
+
+                int chunkRange = maxRange / 16;
+                int bound = chunkRange * 2 + 1;
+
+                int chunkX = ThreadLocalRandom.current().nextInt(bound) - chunkRange;
+                int chunkZ = ThreadLocalRandom.current().nextInt(bound) - chunkRange;
 
                 return world.getChunkAtAsync(chunkX, chunkZ, true).thenAccept(chunk -> {
                     attempts.incrementAndGet();
@@ -104,7 +109,7 @@ public class LocationPreloader {
         }
 
         chain.whenComplete((v, ex) -> {
-            logger.info("Preload cycle done: attempted " + attempts.get()
+            logger.fine("Preload cycle done: attempted " + attempts.get()
                     + " chunks, found " + found.get() + " locations.");
         });
     }
