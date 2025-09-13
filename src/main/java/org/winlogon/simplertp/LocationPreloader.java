@@ -35,14 +35,13 @@ public class LocationPreloader {
         this.logger = logger;
         this.maxPoolSize = config.maxPoolSize();
 
-        this.pool = new LocationPool(maxPoolSize);
+        this.pool = new LocationPool(maxPoolSize, config.maxPoolMultiplier());
     }
 
     /** Kick off the repeating generation task. */
     public void start() {
         logger.info("Starting location preloader service");
-        var configInterval = plugin.getConfig().getInt("preload-interval-hours", 1);
-        var interval = Duration.ofHours(configInterval);
+        var interval = plugin.getRtpConfig().preloaderConfig().preloadInterval();
         task = AsyncCraftr.runAsyncTaskTimer(plugin, this::generateSafeLocations, Duration.ZERO, interval);
     }
 
@@ -60,11 +59,13 @@ public class LocationPreloader {
     }
 
     private void generateSafeLocations() {
-        World world = plugin.getServer().getWorlds().get(0);
-        int maxChunkAttempts = plugin.getConfig().getInt("max-chunk-attempts", 20);
-        int toFind = plugin.getConfig().getInt("locations-per-hour", 5);
-        int perChunkLimit = Math.max(2, toFind / maxChunkAttempts);
+        var world = plugin.getServer().getWorlds().get(0);
 
+        var preloader = plugin.getRtpConfig().preloaderConfig();
+
+        int maxChunkAttempts = preloader.maxChunkAttempts();
+        int toFind = preloader.locationsPerHour();
+        int perChunkLimit = Math.max(2, toFind / maxChunkAttempts);
 
         logger.fine("Starting preload");
         logger.fine(STR."I will try to find \{perChunkLimit} locations in \{maxChunkAttempts} chunks, with \{toFind} samples per chunk");
@@ -118,7 +119,7 @@ public class LocationPreloader {
         Location location = new Location(world, x, 0, z);
 
         var spawnLocation = world.getSpawnLocation();
-        var minRange = plugin.getConfig().getInt("min-range", 3000);
+        var minRange = plugin.getRtpConfig().minRange();
         var distanceFromSpawn = spawnLocation.distanceSquared(new Location(world, x, spawnLocation.getY(), z));
 
         if (!world.getWorldBorder().isInside(location) || distanceFromSpawn < Math.pow(minRange, 2)) {
