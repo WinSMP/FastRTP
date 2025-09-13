@@ -1,26 +1,35 @@
-# Configuration for SimpleRTP
+# SimpleRTP configuration
 
-# Minimum range from spawn that RTP locations can be generated in
+# Minimum distance from 0,0 for a random location.
 min-range: 3000
 
-# Maximum distance from spawn or world border to search for RTP locations.
-# Defaults to half the world border size if not set.
-max-range: 6000
-
-# Maximum number of attempts to find a safe RTP location before giving up
-max-attempts: 50
-
-# Maximum number of locations stored in the preloaded location pool
+# Maximum number of locations to store in the pool.
 max-pool-size: 100
 
-# Number of random samples checked per chunk when searching for safe locations
+# When the server is busy, the pool size will be multiplied by this value
+# to ensure there are enough locations for all players.
+# e.g. 5 * 10 players = 50 locations to be kept in the pool
+max-pool-multiplier: 5
+
+# How many locations to sample per chunk.
+# Higher values may find more locations but increase CPU usage.
 samples-per-chunk: 8
 
-# Maximum number of chunks to attempt loading in the preloading process per hour
-max-chunk-attempts: 10
+# Preloader settings
+preloader:
+  # Maximum range for random teleports.
+  # If <= 0, it will be based on the world border.
+  # This value is capped by the world border radius.
+  max-range: -1.0
 
-# Interval in hours between each location preloading cycle
-preload-interval-hours: 1
+  # Maximum number of attempts to find a safe location.
+  max-attempts: 50
 
-# Number of safe locations to find and preload per hour
-locations-per-hour: 5
+  # Maximum number of chunks to check for a safe location.
+  max-chunk-attempts: 10
+
+  # How often to run the preloader, in hours.
+  preload-interval-hours: 1
+
+  # How many locations to find and add to the pool (and preload) per hour.
+  locations-per-hour: 5

@@ -2,20 +2,24 @@
 package org.winlogon.simplertp;
 
 import org.bukkit.World;
+import org.winlogon.simplertp.config.PreloaderConfig;
 
 public record RtpConfig(
     int minRange,
-    int maxAttempts,
     int maxPoolSize,
+    int maxPoolMultiplier,
     int samplesPerChunk,
-    int maxChunkAttempts,
-    double configMaxRange
+    double configMaxRange,
+    PreloaderConfig preloaderConfig
 ) {
     /**
      * Compute the actual maximum range for RTP in this world:
      *   - take the world-border radius (border.getSize()/2)
      *   - if the user specified a max-range > 0, honor it (but never exceed the border)
      *   - always enforce at least minRange
+     *
+     * @param world the world in question
+     * @return the maximum range
      */
     public double getMaxRange(World world) {
         double borderRadius = world.getWorldBorder().getSize() / 2.0;
