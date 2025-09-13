@@ -7,36 +7,26 @@ import dev.jorel.commandapi.annotations.Help;
 import dev.jorel.commandapi.annotations.Permission;
 import dev.jorel.commandapi.annotations.Subcommand;
 
-import org.bukkit.Bukkit;
-import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
-import org.bukkit.WorldBorder;
-import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.winlogon.asynccraftr.AsyncCraftr;
-
-import io.papermc.paper.threadedregions.scheduler.RegionScheduler;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 
 import java.util.EnumSet;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.function.Consumer;
 import java.util.logging.Logger;
 
 @Command("rtp")
 @Permission("simplertp.rtp")
 @Help("Teleports you to a safe location")
 public class RtpCommand {
-    private static boolean isFolia = isFolia();
     private static final Set<Material> UNSAFE_BLOCKS = EnumSet.of(
         Material.LAVA, Material.WATER, Material.FIRE, Material.CACTUS, Material.MAGMA_BLOCK
     );
@@ -49,8 +39,9 @@ public class RtpCommand {
     public static void rtp(Player player) {
         var plugin = SimpleRtp.getInstance();
         var world  = player.getWorld();
-        var minRange = plugin.getRtpConfig().minRange();
-        var maxAttempts = plugin.getRtpConfig().maxAttempts();
+
+        var minRange = config.minRange();
+        var maxAttempts = config.preloaderConfig().maxAttempts();
         var maxRangeValue = config.getMaxRange(world);
 
         player.sendRichMessage("<gray>Finding a safe location...</gray>");
@@ -60,6 +51,7 @@ public class RtpCommand {
         CompletableFuture<Location> locFuture = preloadedLocation
             .map(CompletableFuture::completedFuture)
             .orElseGet(() -> AsyncCraftr.runAsync(plugin, () -> findSafeLocation(world, maxRangeValue, maxAttempts, minRange) ));
+
         locFuture.thenAccept(safeLoc -> {
             if (safeLoc != null) {
                 AsyncCraftr.runSyncForEntity(plugin, player, () -> {
@@ -153,14 +145,5 @@ public class RtpCommand {
     private static boolean isOutsideMinRange(World world, int x, int z, int minRange) {
         Location spawn = world.getSpawnLocation();
         return spawn.distanceSquared(new Location(world, x, spawn.getY(), z)) >= minRange * minRange;
-    }
-    
-    private static boolean isFolia() {
-        try {
-            Class.forName("io.papermc.paper.threadedregions.RegionizedServer");
-            return true;
-        } catch (ClassNotFoundException _) {
-            return false;
-        }
     }
 }
