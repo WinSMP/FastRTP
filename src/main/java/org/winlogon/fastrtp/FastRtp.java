@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: MPL-2.0
-package org.winlogon.simplertp;
+package org.winlogon.fastrtp;
 
 import java.time.Duration;
 
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.winlogon.simplertp.config.PreloaderConfig;
+import org.winlogon.fastrtp.config.PreloaderConfig;
 
 import dev.jorel.commandapi.CommandAPI;
 
-public class SimpleRtp extends JavaPlugin {
-    private static SimpleRtp instance;
+public class FastRtp extends JavaPlugin {
+    private static FastRtp instance;
 
     private FileConfiguration config;
     private RtpConfig rtpConfig;
@@ -36,7 +36,7 @@ public class SimpleRtp extends JavaPlugin {
     @Override
     public void onDisable() {
         preloader.stop();
-        logger.info("SimpleRTP disabled");
+        logger.info("FastRTP disabled");
     }
 
     public LocationPreloader getPreloader() {
@@ -71,7 +71,7 @@ public class SimpleRtp extends JavaPlugin {
         );
     }
     
-    public static SimpleRtp getInstance() {
+    public static FastRtp getInstance() {
         return instance;
     }
     

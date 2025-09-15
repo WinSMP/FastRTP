@@ -1,4 +1,4 @@
-package org.winlogon.simplertp.config;
+package org.winlogon.fastrtp.config;
 
 import java.time.Duration;
 

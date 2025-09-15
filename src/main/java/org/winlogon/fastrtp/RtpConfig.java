@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MPL-2.0
-package org.winlogon.simplertp;
+package org.winlogon.fastrtp;
 
 import org.bukkit.World;
-import org.winlogon.simplertp.config.PreloaderConfig;
+import org.winlogon.fastrtp.config.PreloaderConfig;
 
 public record RtpConfig(
     int minRange,

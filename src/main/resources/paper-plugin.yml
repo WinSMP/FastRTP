@@ -1,4 +1,4 @@
-main: "${PACKAGE}.SimpleRtp"
+main: "${PACKAGE}.FastRtp"
 name: "${NAME}"
 version: "${VERSION}"
 loader: "${PACKAGE}.RtpLoader"
@@ -7,7 +7,7 @@ author: winlogon
 description: Teleport to a random place, safely
 folia-supported: true
 permissions:
-  simplertp.rtp:
+  fastrtp.rtp:
     default: true
 dependencies:
   server:

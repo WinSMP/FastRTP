@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0
-package org.winlogon.simplertp;
+package org.winlogon.fastrtp;
 
 import org.bukkit.ChunkSnapshot;
 import org.bukkit.Location;
@@ -21,7 +21,7 @@ public class LocationPreloader {
     private static final Set<Material> UNSAFE_BLOCKS = EnumSet.of(
         Material.LAVA, Material.WATER, Material.FIRE, Material.CACTUS, Material.MAGMA_BLOCK
     );
-    private final SimpleRtp plugin;
+    private final FastRtp plugin;
     private Task task;
 
     private final int maxPoolSize;
@@ -29,7 +29,7 @@ public class LocationPreloader {
     private final Logger logger;
     private final RtpConfig config;
 
-    public LocationPreloader(SimpleRtp plugin, Logger logger) {
+    public LocationPreloader(FastRtp plugin, Logger logger) {
         this.plugin = plugin;
         this.config = plugin.getRtpConfig();
         this.logger = logger;

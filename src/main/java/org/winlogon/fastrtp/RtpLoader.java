@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0
-package org.winlogon.simplertp;
+package org.winlogon.fastrtp;
 
 import io.papermc.paper.plugin.loader.library.impl.MavenLibraryResolver;
 import io.papermc.paper.plugin.loader.PluginClasspathBuilder;

@@ -7,7 +7,7 @@ plugins {
     id("java")
 }
 
-group = "org.winlogon.simplertp"
+group = "org.winlogon.fastrtp"
 
 fun getTime(): String {
     val sdf = SimpleDateFormat("yyMMdd-HHmm")

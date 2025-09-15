@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0
-package org.winlogon.simplertp;
+package org.winlogon.fastrtp;
 
 import dev.jorel.commandapi.annotations.Command;
 import dev.jorel.commandapi.annotations.Default;
@@ -24,20 +24,20 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.logging.Logger;
 
 @Command("rtp")
-@Permission("simplertp.rtp")
+@Permission("fastrtp.rtp")
 @Help("Teleports you to a safe location")
 public class RtpCommand {
     private static final Set<Material> UNSAFE_BLOCKS = EnumSet.of(
         Material.LAVA, Material.WATER, Material.FIRE, Material.CACTUS, Material.MAGMA_BLOCK
     );
 
-    private static SimpleRtp plugin = SimpleRtp.getInstance();
+    private static FastRtp plugin = FastRtp.getInstance();
     private static RtpConfig config = plugin.getRtpConfig();
     private static Logger logger = plugin.getLogger();
     
     @Default
     public static void rtp(Player player) {
-        var plugin = SimpleRtp.getInstance();
+        var plugin = FastRtp.getInstance();
         var world  = player.getWorld();
 
         var minRange = config.minRange();
@@ -67,7 +67,7 @@ public class RtpCommand {
 
     @Subcommand("help")
     public static void rtpHelp(Player player) {
-        var rtpConfig = SimpleRtp.getInstance().getRtpConfig();
+        var rtpConfig = FastRtp.getInstance().getRtpConfig();
 
         var minRange = rtpConfig.minRange();
         var world = player.getWorld();
@@ -88,7 +88,7 @@ public class RtpCommand {
     private static Location findSafeLocation(
         World world, double maximumRange, int maxAttempts, int minRange
     ) {
-        var plugin = SimpleRtp.getInstance();
+        var plugin = FastRtp.getInstance();
         int samplesPerChunk = plugin.getRtpConfig().samplesPerChunk();
         int totalSamples = 0;
         int maxRangeInt = (int) maximumRange;

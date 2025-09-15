@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0
-package org.winlogon.simplertp;
+package org.winlogon.fastrtp;
 
 import org.bukkit.Location;
 import org.jetbrains.annotations.Nullable;

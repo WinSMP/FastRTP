@@ -1,4 +1,4 @@
-# SimpleRTP configuration
+# FastRTP configuration
 
 # Minimum distance from 0,0 for a random location.
 min-range: 3000
