@@ -74,10 +74,10 @@ repositories {
 }
 
 dependencies {
-    annotationProcessor("dev.jorel:commandapi-annotations:10.1.2")
+    annotationProcessor("dev.jorel:commandapi-annotations:11.0.0")
 
     compileOnly("com.github.walker84837:JResult:1.4.0")
-    compileOnly("dev.jorel:commandapi-annotations:10.1.2")
+    compileOnly("dev.jorel:commandapi-annotations:11.0.0")
     compileOnly("io.papermc.paper:paper-api:1.21.8-R0.1-SNAPSHOT")
     compileOnly("org.winlogon:asynccraftr:0.1.0")
 
