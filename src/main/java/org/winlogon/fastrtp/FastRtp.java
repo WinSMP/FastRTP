@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: MPL-2.0
 package org.winlogon.fastrtp;
 
-import java.time.Duration;
-
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.winlogon.fastrtp.config.PreloaderConfig;
 
 import dev.jorel.commandapi.CommandAPI;
+import dev.jorel.commandapi.CommandAPIPaperConfig;
+
+import java.time.Duration;
 
 public class FastRtp extends JavaPlugin {
     private static FastRtp instance;
@@ -17,6 +18,11 @@ public class FastRtp extends JavaPlugin {
 
     private LocationPreloader preloader;
     private java.util.logging.Logger logger;
+
+    @Override
+    public void onLoad() {
+        CommandAPI.onLoad(new CommandAPIPaperConfig(this).silentLogs(true));
+    }
 
     @Override
     public void onEnable() {
@@ -30,6 +36,7 @@ public class FastRtp extends JavaPlugin {
         preloader.start();
         logger.info("RTP preloader enabled");
 
+        CommandAPI.onEnable();
         CommandAPI.registerCommand(RtpCommand.class);
     }
 

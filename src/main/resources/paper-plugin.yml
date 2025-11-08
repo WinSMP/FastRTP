@@ -9,9 +9,3 @@ folia-supported: true
 permissions:
   fastrtp.rtp:
     default: true
-dependencies:
-  server:
-    CommandAPI:
-      load: BEFORE
-      required: true
-      join-classpath: true

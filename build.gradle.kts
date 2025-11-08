@@ -3,7 +3,7 @@ import java.util.Date
 import java.util.TimeZone
 
 plugins {
-    id("com.gradleup.shadow") version "9.1.0"
+    id("com.gradleup.shadow") version "9.2.2"
     id("java")
 }
 
@@ -74,10 +74,11 @@ repositories {
 }
 
 dependencies {
-    annotationProcessor("dev.jorel:commandapi-annotations:10.1.2")
+    annotationProcessor("dev.jorel:commandapi-paper-annotations:11.0.0")
 
     compileOnly("com.github.walker84837:JResult:1.4.0")
-    compileOnly("dev.jorel:commandapi-annotations:10.1.2")
+    compileOnly("dev.jorel:commandapi-paper-annotations:11.0.0")
+    implementation("dev.jorel:commandapi-paper-shade:11.0.0")
     compileOnly("io.papermc.paper:paper-api:1.21.10-R0.1-SNAPSHOT")
     compileOnly("org.winlogon:asynccraftr:0.1.0")
 
@@ -102,13 +103,11 @@ tasks.processResources {
 
 tasks.shadowJar {
     archiveClassifier.set("")
-    relocate("io.papermc.lib", "shadow.io.papermc.paperlib")
-    
     // Preserve CommandAPI and JResult packages
     minimize {
-        // exclude(dependency("dev.jorel:commandapi-bukkit-shade:.*"))
         // exclude(dependency("com.github.walker84837:JResult:.*"))
     }
+    relocate("dev.jorel.commandapi", "org.winlogon.homemanager.commandapi")
 }
 
 // Disable jar and replace with shadowJar

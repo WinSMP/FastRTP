@@ -10,48 +10,40 @@ import org.eclipse.aether.graph.Dependency;
 import org.eclipse.aether.repository.RemoteRepository;
 
 public class RtpLoader implements PluginLoader {
+
     @Override
     public void classloader(PluginClasspathBuilder classpathBuilder) {
         var resolver = new MavenLibraryResolver();
 
-        resolver.addRepository(
-            new RemoteRepository.Builder(
-                "central",
-                "default",
-                MavenLibraryResolver.MAVEN_CENTRAL_DEFAULT_MIRROR
-            ).build()
-        );
+        var dependencies = new Dependency[] {
+            dependency("org.winlogon", "asynccraftr", "0.1.0"),
+            dependency("com.github.walker84837", "JResult", "1.4.0"),
+        };
+        var repositories = new RemoteRepository[] {
+            repository("central", MavenLibraryResolver.MAVEN_CENTRAL_DEFAULT_MIRROR),
+            repository("jitpack", "https://jitpack.io"),
+            repository("winlogon", "https://maven.winlogon.org/releases"),
+        };
 
-        resolver.addRepository(
-            new RemoteRepository.Builder(
-                "jitpack",
-                "default",
-                "https://jitpack.io"
-            ).build()
-        );
+        for (var repository : repositories) {
+            resolver.addRepository(repository);
+        }
 
-        resolver.addRepository(
-            new RemoteRepository.Builder(
-                "winlogon",
-                "default",
-                "https://maven.winlogon.org/releases"
-            ).build()
-        );
-
-        resolver.addDependency(
-            new Dependency(
-                new DefaultArtifact("org.winlogon:asynccraftr:0.1.0"),
-                null
-            )
-        );
-
-        resolver.addDependency(
-            new Dependency(
-                new DefaultArtifact("com.github.walker84837:JResult:1.3.0"),
-                null
-            )
-        );
+        for (var dependency : dependencies) {
+            resolver.addDependency(dependency);
+        }
 
         classpathBuilder.addLibrary(resolver);
+    }
+
+    private RemoteRepository repository(String id, String url) {
+        return new RemoteRepository.Builder(id, "default", url).build();
+    }
+
+    private Dependency dependency(String groupId, String artifactId, String version) {
+        return new Dependency(
+            new DefaultArtifact(groupId + ":" + artifactId + ":" + version),
+            null
+        );
     }
 }
