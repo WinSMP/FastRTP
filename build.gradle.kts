@@ -54,7 +54,7 @@ repositories {
             includeModule("com.mojang", "brigadier")
         }
     }
-    
+
     maven {
         name = "winlogon"
         url = uri("https://maven.winlogon.org/releases")
@@ -73,18 +73,24 @@ repositories {
     mavenCentral()
 }
 
+object Version {
+    const val Minecraft = "1.21.11"
+    const val CommandAPI = "11.1.0"
+    const val JUnit = "6.0.1"
+}
+
 dependencies {
-    annotationProcessor("dev.jorel:commandapi-paper-annotations:11.0.0")
+    annotationProcessor("dev.jorel:commandapi-paper-annotations:${Version.CommandAPI}")
 
     compileOnly("com.github.walker84837:JResult:1.4.0")
-    compileOnly("dev.jorel:commandapi-paper-annotations:11.0.0")
-    implementation("dev.jorel:commandapi-paper-shade:11.0.0")
-    compileOnly("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
+    compileOnly("dev.jorel:commandapi-paper-annotations:${Version.CommandAPI}")
+    implementation("dev.jorel:commandapi-paper-shade:${Version.CommandAPI}")
+    compileOnly("io.papermc.paper:paper-api:${Version.Minecraft}-R0.1-SNAPSHOT")
     compileOnly("org.winlogon:asynccraftr:0.1.0")
 
-    testImplementation("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
-    testImplementation("org.junit.jupiter:junit-jupiter:6.0.1")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher:6.0.1")
+    testImplementation("io.papermc.paper:paper-api:${Version.Minecraft}-R0.1-SNAPSHOT")
+    testImplementation("org.junit.jupiter:junit-jupiter:${Version.JUnit}")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher:${Version.JUnit}")
 }
 
 tasks.test {
@@ -103,8 +109,8 @@ tasks.processResources {
 
 tasks.shadowJar {
     archiveClassifier.set("")
-    // Preserve CommandAPI and JResult packages
     minimize {
+        // Keep this hook in case you need exclusions later
         // exclude(dependency("com.github.walker84837:JResult:.*"))
     }
     relocate("dev.jorel.commandapi", "org.winlogon.homemanager.commandapi")
@@ -114,6 +120,7 @@ tasks.shadowJar {
 tasks.jar {
     enabled = false
 }
+
 tasks.assemble {
     dependsOn(tasks.shadowJar)
 }
