@@ -86,7 +86,7 @@ dependencies {
     compileOnly("dev.jorel:commandapi-paper-annotations:${Version.CommandAPI}")
     implementation("dev.jorel:commandapi-paper-shade:${Version.CommandAPI}")
     compileOnly("io.papermc.paper:paper-api:${Version.Minecraft}-R0.1-SNAPSHOT")
-    compileOnly("org.winlogon:asynccraftr:0.1.0")
+    compileOnly("org.winlogon:asynccraftr:0.2.0")
 
     testImplementation("io.papermc.paper:paper-api:${Version.Minecraft}-R0.1-SNAPSHOT")
     testImplementation("org.junit.jupiter:junit-jupiter:${Version.JUnit}")
