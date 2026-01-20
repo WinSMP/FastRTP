@@ -16,7 +16,7 @@ public class RtpLoader implements PluginLoader {
         var resolver = new MavenLibraryResolver();
 
         var dependencies = new Dependency[] {
-            dependency("org.winlogon", "asynccraftr", "0.1.0"),
+            dependency("org.winlogon", "asynccraftr", "0.2.0"),
             dependency("com.github.walker84837", "JResult", "1.4.0"),
         };
         var repositories = new RemoteRepository[] {

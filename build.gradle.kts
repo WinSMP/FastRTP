@@ -74,19 +74,18 @@ repositories {
 }
 
 object Version {
-    const val Minecraft = "1.21.11"
+    const val Minecraft = "1.21.10"
     const val CommandAPI = "11.1.0"
     const val JUnit = "6.0.1"
 }
 
 dependencies {
     annotationProcessor("dev.jorel:commandapi-paper-annotations:${Version.CommandAPI}")
-
     compileOnly("com.github.walker84837:JResult:1.4.0")
     compileOnly("dev.jorel:commandapi-paper-annotations:${Version.CommandAPI}")
-    implementation("dev.jorel:commandapi-paper-shade:${Version.CommandAPI}")
     compileOnly("io.papermc.paper:paper-api:${Version.Minecraft}-R0.1-SNAPSHOT")
     compileOnly("org.winlogon:asynccraftr:0.2.0")
+    implementation("dev.jorel:commandapi-paper-shade:${Version.CommandAPI}")
 
     testImplementation("io.papermc.paper:paper-api:${Version.Minecraft}-R0.1-SNAPSHOT")
     testImplementation("org.junit.jupiter:junit-jupiter:${Version.JUnit}")

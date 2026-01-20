@@ -5,7 +5,7 @@ import org.bukkit.ChunkSnapshot;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
-import org.winlogon.asynccraftr.AsyncCraftr.Task;
+import org.winlogon.asynccraftr.task.Task;
 import org.winlogon.asynccraftr.AsyncCraftr;
 
 import java.time.Duration;
@@ -68,7 +68,7 @@ public class LocationPreloader {
         int perChunkLimit = Math.max(2, toFind / maxChunkAttempts);
 
         logger.fine("Starting preload");
-        logger.fine(STR."I will try to find \{perChunkLimit} locations in \{maxChunkAttempts} chunks, with \{toFind} samples per chunk");
+        logger.fine("I will try to find " + perChunkLimit + " locations in " + maxChunkAttempts + " chunks, with " + toFind + " samples per chunk");
 
         var attempts = new AtomicInteger(0);
         var found = new AtomicInteger(0);
