@@ -33,8 +33,8 @@ val version = when {
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_21
-    targetCompatibility = JavaVersion.VERSION_21
+    sourceCompatibility = JavaVersion.VERSION_25
+    targetCompatibility = JavaVersion.VERSION_25
 }
 
 repositories {
@@ -74,20 +74,23 @@ repositories {
 }
 
 object Version {
-    const val Minecraft = "1.21.10"
+    const val Minecraft = "26.1.2"
+    const val PaperBuildId = "60"
+
     const val CommandAPI = "11.1.0"
     const val JUnit = "6.0.1"
+    const val Paper = "$Minecraft.build.$PaperBuildId-stable"
 }
 
 dependencies {
     annotationProcessor("dev.jorel:commandapi-paper-annotations:${Version.CommandAPI}")
     compileOnly("com.github.walker84837:JResult:1.4.0")
     compileOnly("dev.jorel:commandapi-paper-annotations:${Version.CommandAPI}")
-    compileOnly("io.papermc.paper:paper-api:${Version.Minecraft}-R0.1-SNAPSHOT")
+    compileOnly("io.papermc.paper:paper-api:${Version.Paper}")
     compileOnly("org.winlogon:asynccraftr:0.2.0")
     implementation("dev.jorel:commandapi-paper-shade:${Version.CommandAPI}")
 
-    testImplementation("io.papermc.paper:paper-api:${Version.Minecraft}-R0.1-SNAPSHOT")
+    testImplementation("io.papermc.paper:paper-api:${Version.Paper}")
     testImplementation("org.junit.jupiter:junit-jupiter:${Version.JUnit}")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher:${Version.JUnit}")
 }
@@ -109,7 +112,7 @@ tasks.processResources {
 tasks.shadowJar {
     archiveClassifier.set("")
     minimize {
-        // Keep this hook in case you need exclusions later
+        // Keep this hook in case exclusions are needed later
         // exclude(dependency("com.github.walker84837:JResult:.*"))
     }
     relocate("dev.jorel.commandapi", "org.winlogon.homemanager.commandapi")
@@ -130,9 +133,9 @@ tasks.register("printProjectName") {
     }
 }
 
-tasks.withType<JavaCompile>().configureEach {
-    options.compilerArgs.add("--enable-preview")
-}
+// tasks.withType<JavaCompile>().configureEach {
+//     options.compilerArgs.add("--enable-preview")
+// }
 
 tasks.register("release") {
     dependsOn(tasks.build)
