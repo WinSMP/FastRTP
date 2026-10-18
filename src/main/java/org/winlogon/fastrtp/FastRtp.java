@@ -8,6 +8,7 @@ import org.winlogon.fastrtp.config.PreloaderConfig;
 import dev.jorel.commandapi.CommandAPI;
 import dev.jorel.commandapi.CommandAPIPaperConfig;
 
+import java.util.logging.Logger;
 import java.time.Duration;
 
 public class FastRtp extends JavaPlugin {
@@ -17,7 +18,7 @@ public class FastRtp extends JavaPlugin {
     private RtpConfig rtpConfig;
 
     private LocationPreloader preloader;
-    private java.util.logging.Logger logger;
+    private Logger logger;
 
     @Override
     public void onLoad() {
